@@ -26,9 +26,11 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.2, fig.pos = "H")
 
 library(magrittr)
-library(knitr)
 library(tidyverse)
 library(readxl)
+library(kableExtra)
+library(knitr)
+library(xtable)
 ```
 
 ```{=tex}
@@ -48,6 +50,128 @@ library(readxl)
 
 \section{Ejercicio1}
 <!--Genaro -->
+
+Se tiene que la tasa de error de prueba está dada por:
+$$Average(I(y_0 \neq \hat{y}_0))=E[I(y_0 \neq \hat{y}_0)]$$
+
+Se supone que se está trabajando con dos clases (Aunque también se puede generalizar para $n$ clases). Donde se suponen los siguientes datos de prueba:
+
+$$ y_{0i} = \left\lbrace \begin{array}{ll}
+0 ~, ~ i=1,2,...,n;~Siendo~x_{0i}~los~datos~de~prueba \\
+1
+\end{array}
+\right.$$
+
+Y su respectivo clasificador de Bayes está dado por
+
+$$P(y_{0i} = j |X_{0i}= x_{01}),~ con ~ j = 0,1$$
+
+Donde $$\underbrace{P(y_{0i} = 0 | x_{0i})}_{P_0} ~ > ~ \acute{o} ~ < ~ \underbrace{P(y_{0i} = 1 |x_{0i})}_{P_1}$$
+
+Se toma la máxima probabilidad de las dos probabilidades condicionales anteriores, es decir $máx\{P_0, P_1\}$
+
+El error se minimiza cuando $máx\{P_0, P_1\}$ lleva a aciertos, el cual se reduce al minimizar la tasa de error promedio cuando se usa una indicadora (Clasificador):
+
+La siguiente igualdad es un resultado de probabilidad (Solo se cumple para la indicadora):
+
+$$\underbrace{E[I(\underbrace{y_{0i}\neq \widehat{y}_{0i}) }_{A})|x_{0i}]}_{Se~ desea~ minimizar}=P(y_{0i}\neq \widehat{y}_{0i}|x_{0i})=0*P(I_A=0)+1*(I_A=1)$$
+
+ El menor valor que puede obtener es:
+
+$E[I_{A}|x_{0i}]  = 0$ que sucede cuando $y_{0i}=\hat{y}_{0i}~~$ 
+$\Longrightarrow~~$ $(y_{0i} - \hat{y}_{0i}) = 0$  $~~\Longrightarrow~~$
+$(y_{0i} - \hat{y}_{0i})^2=0$
+
+Seguidamente, se intentará probar que $y_{0i} = \hat{y_{0i}}$ produce el menor error Cuando se usa el método de Bayes.
+
+
+Sea $f(y) = (y - \hat{y})^2$. Donde $E[f(y)] = E[(y - \hat{y})^2]$ es el $MSE$, que es mínimo justamente cuando $y_i$ es el promedio de los errores.
+
+
+Posteriormente, se utiliza una variable binaria que indiqué cuando se comete o no un error:
+
+$I\{y_{0i} \neq \hat{y}_{01}\}$ el cual toma valores de $\left\{
+\begin{aligned}
+0\\
+1\\
+\end{aligned}
+\right.$
+al igual que $y_{0i}$ y el clasificador $\hat{y}_{0i}$.
+
+Entonces $(y_{0i} - \hat{y}_{0i})^2 = I\{y_{0i} \neq \hat{y}_{0i}\}$, esta igualdad se prueba a continuación:
+
+sea:
+
+$$y_{0i} = I\{y_{0i} = j\}~~ y ~~ \hat{y}_{0i} = I\{\hat{y}_{0i} = j\} \longrightarrow ~~ ambas~ son ~indicadoras.$$  
+
+Utilizando la función de perdida 
+
+$$\delta(x) = (y_{0i} - \hat{y}_{0i})^2 = [I\{y_{0i} = j\} - I\{\hat{y}_{0i} = j\}]^2$$
+
+Se prueba que:
+
+$$ \begin{array}{ c | c }
+[I\{y_{0i} = j\} - I\{\hat{y}_{0i} = j\}]^2 & I\{y_{0i} \neq\ \hat{y}_{0i}\} \\ 
+\hline
+(1 - 1)^2 = 0 & 0 \\ 
+(1 - 0)^2 = 1 & 1  \\ 
+(0 - 1)^2 = 1 & 1  \\ 
+(0 - 0)^2 = 0 & 0  \\
+\end{array} $$
+
+Así que $(y_{0i} - \hat{y}_{0i})^2$ es equivalente a $I\{y_{0i} \neq \hat{y}_{0i} \}$
+
+Este proceso de clasificación esta basado en la regla de clasificación de Bayes por lo tanto minimiza $(y_{0i} - \hat{y}_{0i})^2$ y minimiza la tasa de error de prueba.
+
+Esta expresión anterior se demostrará a continuación:
+
+
+Se define la función de pérdida posterior como:
+
+$$ L(y_{0i},\delta(x)) = (y_{0i}-\hat{y}_{0i})^2 = [I\{y_{0i}=j\}-I\{\hat{y}_{0i}=j\}]^2 $$
+Consideremos $y = y_{0i}$, $x= x_{0i}$ para facilitar el proceso algebráico a continuación:
+
+$$ L(y,\delta(x)) = (y-\hat{y})^2 = [I\{y=j\}-I\{\hat{y}=j\}]^2 $$
+
+Sea la función de pérdida posterior esperada:
+
+
+$$
+\begin{aligned}
+\gamma(y,\delta(x)) & = E[L(y,\delta(x))|X=x]\\
+& = E[(y-\hat{y})^2|X=x]\\
+& = E[(y-E[y|x]+E[y|x]-\hat{y})^2|X=x]\\
+& = E[(y-E[y|x])^2 + (E[y|x]-\hat{y})^2 + 2(y-E[y|x])(E[y|x]-\hat{y})|X=x]\\
+& = E[(y-E[y|x])^2|X=x]+(E[y|x]-\hat{y})^2 + 2 
+\underbrace{E[(y-E[y|x])(E[y|x]-\hat{y})|X=x]}_{\blacksquare}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\blacksquare E[(y-E[y|x])(E[y|x]-\hat{y})|X=x] & = E[y \cdot E[y|x] - y\cdot\hat{y}-E^2[y|x] + \hat{y} \cdot E[y|x]|X=x]\\
+& = \color{blue}{E[y|x]E[y|x]} - \color{red}{\hat{y}E[y|x]}-\color{blue}{E^2[y|x]} + \color{red}{\hat{y}E[y|x]}\\
+& = 0
+\end{aligned}
+$$
+
+Por lo tanto
+
+$$\gamma(y, \delta(x))  = E[(y-E[y|x])^2|X=x]+(E[y|x]-\hat{y})^2
+\geq \underbrace{E[(y-E[y|x])^2|X=x]}_{Cota~inferior:~mínimo}$$
+
+
+Por lo tanto el mínimo valor que toma $\gamma(y, \delta(x))$ es: 
+
+$$E[(y-E[y|x])^2|X=x] ~ \text{que es cuando}~ (E[y|x]-\hat{y})^2 = 0$$
+
+Dado que $E[(y-E[y|x])^2|X=x]$ es la cota mínima, se prueba que esta utiliza el estimador de Bayes para estimar $\hat{y}$ y lo esta utilizando mediante $E[y|x]: (E[(y- \color{purple}{E[y|x]})^2|X=x])$ donde:
+
+
+$$\widehat{y}=E[y|x]=\underbrace{P(y|x)}_{Estimador ~ de~  Bayes}$$
+
+
+
 
 \section{Ejercicio2}
 ```{r}
@@ -78,15 +202,33 @@ db$Y <- as.factor(db$Y)
 
 ```{r}
 rm(X1,X2,X3,Y)
-kable(db, caption = "Base de datos")
+db %>% kable(., caption = "Base de datos") %>%
+   kable_styling(latex_options = "HOLD_position")
 ```
+
+
 
 \subsection{a) Distancia a cada observación}
 
 Usando la distancia euclidiana entre dos punto $u$ y $v$ definida como: 
 
 $$d(u, v) = \sqrt{(u_1- v_1)^2+(u_2-v_2)^2+(u_3-v_3)^2}$$
-Calculamos la distancia entre cada observación y el punto $X_1 = X_2 = X_3 = 0$ usando R. 
+Calculamos la distancia entre cada observación y el punto $P$ con características $X_1 = X_2 = X_3 = 0$ 
+
+* $d(p, x_1) = \sqrt{(p_1- x_{1,1})^2+(p_2-x_{1,2})^2+(p_3-x_{1,3})^2} = \sqrt{(0-0)^2 + (0-3)^2 +(0-0)^2} = \sqrt{0 + 9 + 0} = \sqrt{9} = 3$
+
+* $d(p, x_2) = \sqrt{(p_1- x_{2,1})^2+(p_2-x_{2,2})^2+(p_3-x_{2,3})^2} = \sqrt{(0-2)^2 + (0-0)^2 + (0-0)^2} = \sqrt{4 + 0 + 0} = \sqrt{4} = 2$
+
+* $d(p, x_3) = \sqrt{(p_1- x_{3,1})^2+(p_2-x_{3,2})^2+(p_3-x_{3,3})^2} = \sqrt{(0-0)^2 + (0-1)^2 + (0-3)^2} = \sqrt{0 + 1 + 9} = \sqrt{10} = 3.162278$
+
+* $d(p, x_4) = \sqrt{(p_1- x_{4,1})^2+(p_2-x_{4,2})^2+(p_3-x_{4,3})^2} = \sqrt{(0-0)^2 + (0-1)^2 + (0-2)} = \sqrt{0 + 1 + 4} = \sqrt{5} = 2.236068$
+
+* $d(p, x_5) = \sqrt{(p_1- x_{5,1})^2+(p_2-x_{5,2})^2+(p_3-x_{5,3})^2} = \sqrt{(0+1)^2 + (0-0)^2 + (0-1)^2} = \sqrt{1 + 0 + 1} = \sqrt{2} = 1.414214$
+
+* $d(p, x_6) = \sqrt{(p_1- x_{6,1})^2+(p_2-x_{6,2})^2+(p_3-x_{6,3})^2} = \sqrt{(0-1)^2 + (0-1)^2 + (0-1)^3} = \sqrt{1 + 1 +1} = \sqrt{3} = 1.732051$
+
+
+Ahora procedemos a calcularla con R:  
 
 ```{r, echo = TRUE}
 point <- c(0, 0, 0)
@@ -103,11 +245,10 @@ dist_eucl <- function(x){
 
 db <- mutate(db, dist = dist_eucl(db[1:3]))
 ```
-Se obtiene: 
 
 ```{r}
 db %>% mutate(., obs = 1:6) %>% select(obs, Y, dist) %>%
-  kable(., caption = "Distancia a cada observación desde el punto $X_1 = X_2 = X_3 = 0$", col.names = c("Observación", "Grupo", "Distancia Euclidiana"))
+  kable(., caption = "Distancia a cada observación desde el punto $X_1 = X_2 = X_3 = 0$", col.names = c("Observación", "Grupo", "Distancia Euclidiana")) %>%  kable_styling(latex_options = "HOLD_position")
 ```
 
 
@@ -124,5 +265,152 @@ Si la frontera de decisión de Bayes en este problema es altamente no
 lineal, ¿esperaríamos que el mejor valor de K fuera grande o
 pequeño? ¿Por qué?
 
+A medida que K crece, el método se vuelve menos flexible y produce un
+limite de decisión cercano a lineal. Teniendo en cuenta esto, es de esperarse que
+el mejor valor para K sea pequeño.
+
 \section{Ejercicio4}
 <!--Daniel Hoyos --> 
+
+\subsection{a) Use the read.csv() function to read the data into R. Call the loaded data college. Make sure that you have the directory set to the correct location for the data}
+
+Inicialmente cargamos los datos de la siguiente manera:
+
+```{r, echo = TRUE}
+library(ISLR)
+College=ISLR::College
+kable(head(College))
+```
+
+\subsection{b) Look at the data using the fix() function. You should notice that the first column is just the name of each university. We don’t really want R to treat this as data. However, it may be handy to have these names for later. Try the following commands:}
+
+Para esta sección, mostramos la estructura de los datos, la cual, a groso modo cuenta con datos de 777 universidades 
+
+```{r, echo = TRUE, eval = FALSE}
+fix(College)
+rownames(College)=College[,1]
+College=College [,-1]
+fix(College)
+```
+
+\subsection{c) Use the summary() function to produce a numerical summary of the variables in the data set.}
+
+Luego, calculamos el resumen estadístico general para todas las variables de la base de datos,
+#este resumen es muy importante, dado que nos da una mejor visión sobre la estructura y el comportamiento de nuestra información.
+
+```{r}
+kable(summary(College))
+```
+
+
+
+
+#por ejemplo, en promedio el numero de estudiantes matriculados son 780 por universidad, el costo promedio de los libros
+#es aproximadamente 549.4 dólares, la cantidad promedio de empleados para cada universidad es de 13441 personas, otros datos interesantes como
+#La razón promedio de graduación que es de 65.46, indica que de cada 100 estudiantes aproximadamente 66 se gradúan.
+
+\subsection{II) Use the pairs() function to produce a scatterplot matrix of the first ten columns or variables of the data. Recall that you can reference the first ten columns of a matrix A using A[,1:10].}
+
+En esta sección realizamos un diagrama de dispersión, con el fin de observar el grado de asociación lineal entre 
+las primeras 10 variables cuantitativas, el resultado fue el siguiente:
+  
+```{r, echo = TRUE}
+pairs(College[,1:10])
+```
+#inicialmente observamos una alta asociación entre las variables número de aplicaciones recibidas(apps) y numero de aplicaciones
+#aceptadas(accept), esto indica que en general, que a medida que aumenta la recepción de aplicaciones aumenta también su
+#aceptacion, lo cual tiene mucho sentido.
+#de la misma manera existe una alta asociación entre aplicaciones aceptadas(accept) y 
+#número de estudiantes matriculados(enroll)
+#otra relación bastante fuerte es entre los estudiantes nuevos que hacen parte del 10% y 25% superior de secundaria,
+#inidica que hacer parte de estos porcentajes puede incrementar la probabilidad e asistir a una universidad.
+
+\subsection{III) Use the plot() function to produce side-by-side boxplots of Outstate versus Private.}
+
+#luego, agreagamos un grafico entre universidad publica o privada y el numero de matriculas fuera del estado
+
+```{r, echo = TRUE}
+plot(College$Outstate~as.factor(College$Private),main="Privados vs Matricula Fuera del Estado",xlab='Privado',
+     ylab='Matricula fuera del estado')
+```
+#el grafico anterior nos muestra que aparentemente no existe una diferencia significativa sobre el comportamiento
+#medio para el numero de matrículas fuera del estado para universidades públicas o privadas, aunque se podría pensar que
+# es un poco mayor para las privadas, pero el traslape de las cajas no es muy evidente.
+
+
+\subsection{IV) Create a new qualitative variable, called Elite, by binning the Top10perc variable. We are going to divide universities into two groups based on whether or not the proportion of students coming from the top 10 % of their high school classes exceeds 50 %.}
+
+#En esta sección realizamos una agrupación en una nueva variable categórica llamada Elite, donde los estudiantes con
+#un rendimiento superior del 10 % en secundaria, se agrupan en si, siempre y cuando la universidad contenga 50 o mas de ellos,
+#en caso contrario se agrupan en no, el resultado fue el siguiente:
+
+```{r}
+Elite=rep("No",nrow(College ))
+Elite[College$Top10perc >50]=" Yes"
+Elite=as.factor(Elite)
+College=data.frame(College , Elite)
+kable(summary(College$Elite), col.names = c("Cantidad"))
+```
+
+```{r, echo = TRUE}
+plot(College$Outstate~as.factor(College$Elite),main="Elite vs Matricula Fuera del Estado",xlab='Elite',
+     ylab='Matricula fuera del estado')
+```
+
+
+#graficamente parece haber mayor cantidad de matrículas fuera del estado para los estudiantes elite, pero esta diferencia
+#no es muy clara, pero da indicios muy fuertes.
+
+\subsection{V) Use the hist() function to produce some histograms with differing numbers of bins for a few of the quantitative vari ables. You may find the command par(mfrow=c(2,2)) useful: it will divide the print window into four regions so that four plots can be made simultaneously. Modifying the arguments to this function will divide the screen in other ways.}
+
+#los siguientes histogramas muestran la distribución de algunas de las variables, sin embargo, no es posible concluir
+#acerca de una posible distribución.
+
+```{r, echo = TRUE}
+par(mfrow=c(2,2))
+hist(College$Apps)
+hist(College$Accept)
+hist(College$Enroll)
+hist(College$Top10perc)
+```
+
+
+\subsection{VI) Continue exploring the data, and provide a brief summary of what you discover.}
+Continúe explorando los datos.
+
+```{r, echo = TRUE, warning=FALSE, message=FALSE}
+base<-College
+base<-base[,2:7]
+
+library(ggplot2)
+library(GGally)
+
+gg2<-ggpairs(base,upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
+                                               
+                                               method = "lm")),lower=list(continuous ="cor"))
+
+for(i in 1:ncol(base)){
+  gg2[i,i]<-gg2[i,i]+
+    geom_histogram(breaks=hist(base[,i],breaks = "FD",plot=F)$breaks,
+                   
+                   colour = "red",fill="lightgoldenrod1")
+  
+}
+
+gg2
+ggpairs(base,diag=list(continuous=wrap("box_no_facet",color="red",
+                                       fill="lightgoldenrod1",alpha=0.3)),
+        upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,method = "lm")),
+        lower=list(continuous ="cor"))
+```
+
+
+
+#el siguiente grafico representa el comportamiento de las primeras 8 variables cuantitativas, la siguiente imagen, reúne  
+# un conjunto de gráficos muy importantes a la hora de hacer un análisis descriptivo, por su parte también nos enseña 
+#la relación que existe entre unas u otras y del grado de asociación numérico dictado por el coeficiente de correlación.
+#si existe o no una posible distribución asociada a cada variable.
+
+
+
+
