@@ -11,14 +11,16 @@ header-includes:
 - \usepackage{float}
 - \usepackage{multirow}
 output:
-  pdf_document: 
+  html_document:
+    df_print: paged
+  pdf_document:
     number_sections: yes
 fontsize: 12pt
 papersize: letter
 geometry: margin = 1in
-language: "es"
-editor_options: 
-  markdown: 
+language: es
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -184,6 +186,7 @@ kable(summary(db), col.names = c("x", "Tiempo"))
 ```
 
 ```{r}
+attach(db)
 db %>% ggplot(., aes(x=y, y=x)) +
   geom_point()+
   ggtitle("Diagrama de dispersión")+
@@ -191,6 +194,7 @@ db %>% ggplot(., aes(x=y, y=x)) +
   
 ```
 ```{r, warning=FALSE}
+attach(db)
 db %>% ggplot(., aes(x=y, y=x))+ 
   geom_boxplot()+ 
   ggtitle("Box-plot ")+
@@ -225,6 +229,32 @@ db %>% ggplot(., aes(x=y, y=x)) +
   xlab("Tiempo(seg)")
 ```
 
+```{r}
+data=data.frame(x,y)
+attach(data)
+library(lattice)
+library(caret)
+model = knnreg(x ~ y,data=data)
+set.seed(1)
+model <- train(
+  x ~ y,
+  data = data,
+  method = 'knn'
+)
+model
+plot(model)
+```
+
+```{r}
+library(deming)
+afit1 <- theilsen(x ~ y, symmetric=TRUE)
+afit1
+regresion <- lm(x ~ y)
+plot(y,x,main = 'No parametric Regression Theil Model')
+abline(afit1,col='blue')
+abline(regresion,col='red')
+```
+
 
 \subsection{Modelo No Parametrico}
 
@@ -257,7 +287,7 @@ cor.test(db$x, db$y,alternative="greater",method="s")
 ```
 
 
-Para un valor de $\alpha = 0.05$ existe suficiente evidencia para rechazar $H_0$, por lo cual se concluye que existe una fuerte dependencia positiva entre X e y, con unvalor de $\rho = 1$ que indica que es completamente lineal.
+Para un valor de $\alpha = 0.05$ existe suficiente evidencia para rechazar $H_0$, por lo cual se concluye que existe una fuerte dependencia positiva entre X e y, con un valor de $\rho = 1$ que indica que es completamente lineal.
 
 \section{Ejercicio3}
 \subsection{K-nearest neighbors (KNN)}
