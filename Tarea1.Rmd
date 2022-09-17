@@ -23,14 +23,14 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.2, fig.pos = "H")
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
 library(magrittr)
 library(tidyverse)
 library(readxl)
 library(kableExtra)
 library(knitr)
-library(xtable)
+library(corrplot)
 ```
 
 ```{=tex}
@@ -49,7 +49,9 @@ library(xtable)
 ```
 
 \section{Ejercicio1}
-<!--Genaro -->
+\subsection{Clasificador de Bayes un gold estándar}
+
+El clasificador de Bayes produce la menor tasa de error de prueba. Demostración: 
 
 Se tiene que la tasa de error de prueba está dada por:
 $$Average(I(y_0 \neq \hat{y}_0))=E[I(y_0 \neq \hat{y}_0)]$$
@@ -174,16 +176,90 @@ $$\widehat{y}=E[y|x]=\underbrace{P(y|x)}_{Estimador ~ de~  Bayes}$$
 
 
 \section{Ejercicio2}
+\subsection{Analisis Descriptivo}
 ```{r}
 db <- read_xlsx("Data/calibracion_cronometro.xlsx")
-
-#Mirar cual es la variable x y cual es la variable y 
-db %>% ggplot(., aes(x=y, y=x)) +
-   geom_point()
+db <- db %>% select(x,y)
+kable(summary(db), col.names = c("x", "Tiempo"))
 ```
 
+```{r}
+db %>% ggplot(., aes(x=y, y=x)) +
+  geom_point()+
+  ggtitle("Diagrama de dispersión")+
+  xlab("Tiempo(seg)")
+  
+```
+```{r, warning=FALSE}
+db %>% ggplot(., aes(x=y, y=x))+ 
+  geom_boxplot()+ 
+  ggtitle("Box-plot ")+
+  xlab("Tiempo(seg)")
+  
+```
+**Matriz de Autocorrelación**
+
+```{r}
+db %>% as.matrix() %>% cor() %>% corrplot(., method="number")
+```
+
+
+\subsection{Modelo Parametrico}
+
+**Modelo lineal** 
+
+$$Y = \beta_0 + \beta_1x+\epsilon \: ; \: \epsilon \sim N(0, \sigma^2)$$
+
+
+```{r}
+model <- lm(db$y ~ db$x)
+summary(model)
+```
+
+
+```{r, warning = FALSE, message=FALSE}
+db %>% ggplot(., aes(x=y, y=x)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE)+
+  ggtitle("Modelo Lineal")+
+  xlab("Tiempo(seg)")
+```
+
+
+\subsection{Modelo No Parametrico}
+
+**Test de Spearmn**
+
+El test de Spearman es la contra parte no parametrica del test de correlación de Pearson, ambos buscan encontrar y cuantificar el grado de relación lineal entre dos variables.
+partiendo de lo anterior, como vimos en la sección anterior, las variables x e y presentan un muy buen ajuste lineal que deriva en una dependencia bastante marcada, el test de Spearman nos permitirá corroborar esta dependencia
+y adicionalmente, nos permitiría calcular un valor para la correlación entre las mismas. como veremos a continuación. 
+
+Prueba unilateral derecha:
+
+* $H_0:$ X e Y son mutuamente independientes.
+* $H_a:$ Existe una tendencia a formar parejas entre los valores grandes de X e Y.
+
+Estadístico de prueba:
+El test de Pearson, presenta dos tipos de estadísticos de prueba, uno cuando
+existen repeticiones entre las observaciones, y otro en caso contrario, para el estudio que estamos llevando a cabo se verifico dicha situación, y nos encontramos con que efectivamente no tenemos ninguna observación repetida, por lo cual el siguiente es el estadístico de 
+
+Prueba a utilizar:
+
+$\rho = 1 - \frac{6T}{n(n^2-1)}$ donde $T = \sum_{i=1}^{n} [R(x_i)-R(y_i)]^2$
+
+Criterio de rechazo: 
+$Rc=[\rho/\rho <- W\alpha]$ donde $W\alpha$ valor tabulado en la tabla A.10 con la aproximación normal.
+$VP = P(Z < \rho\sqrt{n-1})$ para un valor de $\alpha = 0.05$ se rechaza $H_0$ si el Valor p $< \alpha$ 
+
+
+```{r}
+cor.test(db$x, db$y,alternative="greater",method="s")
+```
+
+
+Para un valor de $\alpha = 0.05$ existe suficiente evidencia para rechazar $H_0$, por lo cual se concluye que existe una fuerte dependencia positiva entre X e y, con unvalor de $\rho = 1$ que indica que es completamente lineal.
+
 \section{Ejercicio3}
-<!--Santiago Rojas -->
 \subsection{K-nearest neighbors (KNN)}
 
 $$Pr(Y = J \mid X = x_0) \approx \frac{1}{K} \sum_{i \in N_0}I(y_i=j)$$
@@ -256,8 +332,40 @@ db %>% mutate(., obs = 1:6) %>% select(obs, Y, dist) %>%
 
 Con una selección de K = 1. Knn identifica la observación más cercana al punto con características $X_1 = X_2 = X_3 = 0$ y en este caso la observación mas cercana es la **numero 5** con una distancia de **1.414214**. Dando así Knn una  estimación de $1/1$ de pertenecer al grupo **Green**. Por ende la estimación es pertenecer a la clase **Green**. 
 
+Usando la librería **Class** y la funcion **knn()** se obtiene: 
+
+
+```{r}
+db <- db %>% select(X1, X2, X3, Y)
+```
+
+
+```{r, echo = TRUE}
+library(class)
+point <- c(0,0,0)
+n <- 6 
+
+model <- knn(train=db[, -4], test=point, cl=db[1:6, 4], k = 1)
+kable(model, col.names = c("Predicción"))
+```
+
+
+
 \subsection{c) Predicción para K = 3}
 Con una selección de K = 3. Knn identifica las 3 observaciones más cercanas al punto con características $X_1 = X_2 = X_3 = 0$ y en este caso las observaciones mas cercana son la **numero 5**, la **numero 6** y la **numero 2** que consisten en 2 observaciones de la clase **Red** y una observación de la clase **Green**, dando como restulado una estimación de $2/3$ de pertenecer a la clase **Red** y $1/3$ de pertenecer a la clase **Green**. Por consiguiente se estima pertenecer a la clase **Red**.
+
+
+
+```{r, echo = TRUE}
+library(class)
+point <- c(0,0,0)
+n <- 6 
+
+model <- knn(train=db[, -4], test=point, cl=db[,4], k = 3) 
+kable(model, col.names = c("Predicción"))
+```
+
+
 
 \subsection{d) Frontera de decisión de Bayes}
 
@@ -265,22 +373,29 @@ Si la frontera de decisión de Bayes en este problema es altamente no
 lineal, ¿esperaríamos que el mejor valor de K fuera grande o
 pequeño? ¿Por qué?
 
-A medida que K crece, el método se vuelve menos flexible y produce un
-limite de decisión cercano a lineal. Teniendo en cuenta esto, es de esperarse que
-el mejor valor para K sea pequeño.
+
+
+Cuando K empieza a crecer el modelo empieza a perder flexibilidad tomando una forma lineal. Con un k pequeño el modelo es mas flexible. Con esto en mente el mejor valor para k es cuando k toma un valor pequeño. 
 
 \section{Ejercicio4}
-<!--Daniel Hoyos --> 
+ 
 
 \subsection{a) Use the read.csv() function to read the data into R. Call the loaded data college. Make sure that you have the directory set to the correct location for the data}
 
 Inicialmente cargamos los datos de la siguiente manera:
 
-```{r, echo = TRUE}
+```{r, echo = TRUE, eval = FALSE}
 library(ISLR)
 College=ISLR::College
 kable(head(College))
 ```
+
+```{r,out.width="15%",}
+library(ISLR)
+College=ISLR::College
+College %>% select(Private, Apps, Enroll,Top10perc,Top25perc) %>% head() %>% kable()
+```
+
 
 \subsection{b) Look at the data using the fix() function. You should notice that the first column is just the name of each university. We don’t really want R to treat this as data. However, it may be handy to have these names for later. Try the following commands:}
 
@@ -293,80 +408,68 @@ College=College [,-1]
 fix(College)
 ```
 
-\subsection{c) Use the summary() function to produce a numerical summary of the variables in the data set.}
+\subsection{I) Use the summary() function to produce a numerical summary of the variables in the data set.}
 
-Luego, calculamos el resumen estadístico general para todas las variables de la base de datos,
-#este resumen es muy importante, dado que nos da una mejor visión sobre la estructura y el comportamiento de nuestra información.
+Luego, calculamos el resumen estadístico general para todas las variables de la base de datos, este resumen es muy importante, dado que nos da una mejor visión sobre la estructura y el comportamiento de nuestra información.
 
 ```{r}
-kable(summary(College))
+summary(College)
 ```
 
 
 
 
-#por ejemplo, en promedio el numero de estudiantes matriculados son 780 por universidad, el costo promedio de los libros
-#es aproximadamente 549.4 dólares, la cantidad promedio de empleados para cada universidad es de 13441 personas, otros datos interesantes como
-#La razón promedio de graduación que es de 65.46, indica que de cada 100 estudiantes aproximadamente 66 se gradúan.
+Por ejemplo, en promedio el numero de estudiantes matriculados son 780 por universidad, el costo promedio de los libros es aproximadamente 549.4 dólares, la cantidad promedio de empleados para cada universidad es de 13441 personas, otros datos interesantes como: La razón promedio de graduación que es de 65.46, indica que de cada 100 estudiantes aproximadamente 66 se gradúan.
 
 \subsection{II) Use the pairs() function to produce a scatterplot matrix of the first ten columns or variables of the data. Recall that you can reference the first ten columns of a matrix A using A[,1:10].}
 
 En esta sección realizamos un diagrama de dispersión, con el fin de observar el grado de asociación lineal entre 
 las primeras 10 variables cuantitativas, el resultado fue el siguiente:
   
-```{r, echo = TRUE}
+```{r}
 pairs(College[,1:10])
 ```
-#inicialmente observamos una alta asociación entre las variables número de aplicaciones recibidas(apps) y numero de aplicaciones
-#aceptadas(accept), esto indica que en general, que a medida que aumenta la recepción de aplicaciones aumenta también su
-#aceptacion, lo cual tiene mucho sentido.
-#de la misma manera existe una alta asociación entre aplicaciones aceptadas(accept) y 
-#número de estudiantes matriculados(enroll)
-#otra relación bastante fuerte es entre los estudiantes nuevos que hacen parte del 10% y 25% superior de secundaria,
-#inidica que hacer parte de estos porcentajes puede incrementar la probabilidad e asistir a una universidad.
+Inicialmente observamos una alta asociación entre las variables número de aplicaciones recibidas(apps) y numero de aplicaciones aceptadas(accept), esto indica que en general, que a medida que aumenta la recepción de aplicaciones aumenta también su aceptación, lo cual tiene mucho sentido. De la misma manera existe una alta asociación entre aplicaciones aceptadas(accept) y 
+número de estudiantes matriculados(enroll). Otra relación bastante fuerte es entre los estudiantes nuevos que hacen parte del 10% y 25% superior de secundaria, indica que hacer parte de estos porcentajes puede incrementar la probabilidad e asistir a una universidad.
 
 \subsection{III) Use the plot() function to produce side-by-side boxplots of Outstate versus Private.}
 
-#luego, agreagamos un grafico entre universidad publica o privada y el numero de matriculas fuera del estado
+Luego, agregamos un gráfico entre universidad publica o privada y el numero de matriculas fuera del estado.
 
-```{r, echo = TRUE}
-plot(College$Outstate~as.factor(College$Private),main="Privados vs Matricula Fuera del Estado",xlab='Privado',
+```{r}
+plot(College$Outstate~as.factor(College$Private),
+     main="Privados vs Matricula Fuera del Estado",xlab='Privado',
      ylab='Matricula fuera del estado')
 ```
-#el grafico anterior nos muestra que aparentemente no existe una diferencia significativa sobre el comportamiento
-#medio para el numero de matrículas fuera del estado para universidades públicas o privadas, aunque se podría pensar que
-# es un poco mayor para las privadas, pero el traslape de las cajas no es muy evidente.
+El gráfico anterior nos muestra que aparentemente no existe una diferencia significativa sobre el comportamiento medio para el numero de matrículas fuera del estado para universidades públicas o privadas, aunque se podría pensar que es un poco mayor para las privadas, pero el traslape de las cajas no es muy evidente.
 
+\subsection{IV) Create a new qualitative variable, called Elite, by binning the Top10perc variable. We are going to divide universities into two groups based on whether or not the proportion of students coming from the top 10 percent of their high school classes exceeds 50 percent.}
 
-\subsection{IV) Create a new qualitative variable, called Elite, by binning the Top10perc variable. We are going to divide universities into two groups based on whether or not the proportion of students coming from the top 10 % of their high school classes exceeds 50 %.}
-
-#En esta sección realizamos una agrupación en una nueva variable categórica llamada Elite, donde los estudiantes con
-#un rendimiento superior del 10 % en secundaria, se agrupan en si, siempre y cuando la universidad contenga 50 o mas de ellos,
-#en caso contrario se agrupan en no, el resultado fue el siguiente:
+En esta sección realizamos una agrupación en una nueva variable categórica llamada Elite, donde los estudiantes con un rendimiento superior del 10 % en secundaria, se agrupan en si, siempre y cuando la universidad contenga 50 o mas de ellos, en caso contrario se agrupan en no, el resultado fue el siguiente:
 
 ```{r}
 Elite=rep("No",nrow(College ))
 Elite[College$Top10perc >50]=" Yes"
 Elite=as.factor(Elite)
 College=data.frame(College , Elite)
-kable(summary(College$Elite), col.names = c("Cantidad"))
+kable(summary(College$Elite), col.names = "Cantidad")
 ```
 
-```{r, echo = TRUE}
-plot(College$Outstate~as.factor(College$Elite),main="Elite vs Matricula Fuera del Estado",xlab='Elite',
+```{r}
+plot(College$Outstate~as.factor(College$Elite),
+     main="Elite vs Matricula Fuera del Estado",xlab='Elite',
      ylab='Matricula fuera del estado')
 ```
 
 
-#graficamente parece haber mayor cantidad de matrículas fuera del estado para los estudiantes elite, pero esta diferencia
-#no es muy clara, pero da indicios muy fuertes.
+Gráficamente parece haber mayor cantidad de matrículas fuera del estado para los estudiantes elite, pero esta diferencia
+no es muy clara, pero da indicios muy fuertes.
 
 \subsection{V) Use the hist() function to produce some histograms with differing numbers of bins for a few of the quantitative vari ables. You may find the command par(mfrow=c(2,2)) useful: it will divide the print window into four regions so that four plots can be made simultaneously. Modifying the arguments to this function will divide the screen in other ways.}
 
-#los siguientes histogramas muestran la distribución de algunas de las variables, sin embargo, no es posible concluir
-#acerca de una posible distribución.
+Los siguientes histogramas muestran la distribución de algunas de las variables, sin embargo, no es posible concluir acerca de una posible distribución.
 
-```{r, echo = TRUE}
+```{r, width = 100, height = 100}
 par(mfrow=c(2,2))
 hist(College$Apps)
 hist(College$Accept)
@@ -378,16 +481,17 @@ hist(College$Top10perc)
 \subsection{VI) Continue exploring the data, and provide a brief summary of what you discover.}
 Continúe explorando los datos.
 
-```{r, echo = TRUE, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE}
 base<-College
 base<-base[,2:7]
 
 library(ggplot2)
 library(GGally)
 
-gg2<-ggpairs(base,upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
-                                               
-                                               method = "lm")),lower=list(continuous ="cor"))
+gg2<-ggpairs(base,
+             upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
+                                               method = "lm")),
+             lower=list(continuous ="cor"))
 
 for(i in 1:ncol(base)){
   gg2[i,i]<-gg2[i,i]+
@@ -406,10 +510,7 @@ ggpairs(base,diag=list(continuous=wrap("box_no_facet",color="red",
 
 
 
-#el siguiente grafico representa el comportamiento de las primeras 8 variables cuantitativas, la siguiente imagen, reúne  
-# un conjunto de gráficos muy importantes a la hora de hacer un análisis descriptivo, por su parte también nos enseña 
-#la relación que existe entre unas u otras y del grado de asociación numérico dictado por el coeficiente de correlación.
-#si existe o no una posible distribución asociada a cada variable.
+El siguiente gráfico representa el comportamiento de las primeras 8 variables cuan-titativas, reuniendo un conjunto de gráficos muy importantes a la hora de hacer un análisis descriptivo como lo es observar la correlación entre las variables, de esta manera ver si existe relación lineal entre dichas variables.
 
 
 

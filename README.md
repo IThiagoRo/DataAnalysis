@@ -1,2 +1,2 @@
 # DataAnalysis
-Repo for introduction to survival analysis semester 2022-2
+Repo for introduction to Data Analysis semester 2022-2
