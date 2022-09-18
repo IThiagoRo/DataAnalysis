@@ -11,14 +11,16 @@ header-includes:
 - \usepackage{float}
 - \usepackage{multirow}
 output:
-  pdf_document: 
+  pdf_document:
     number_sections: yes
+  html_document:
+    df_print: paged
 fontsize: 12pt
 papersize: letter
 geometry: margin = 1in
-language: "es"
-editor_options: 
-  markdown: 
+language: es
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -177,20 +179,30 @@ $$\widehat{y}=E[y|x]=\underbrace{P(y|x)}_{Estimador ~ de~  Bayes}$$
 
 \section{Ejercicio2}
 \subsection{Analisis Descriptivo}
+
+Primeramente, se presenta una tabla resumen de los datos:
+
 ```{r}
 db <- read_xlsx("Data/calibracion_cronometro.xlsx")
 db <- db %>% select(x,y)
 kable(summary(db), col.names = c("x", "Tiempo"))
 ```
 
+Luego, se presenta un gráfico de la medida tomada X (La cual no se especifica a que hace referenciaen la base de datos) versus el tiempo en segundos de dichos registros de X:
+
 ```{r}
+attach(db)
 db %>% ggplot(., aes(x=y, y=x)) +
   geom_point()+
   ggtitle("Diagrama de dispersión")+
   xlab("Tiempo(seg)")
   
 ```
+
+Seguidamente, támbien se muestra un box-plot donde se observa la variabilidad de las mediciones de X en segundos es muy simetrica adentro de la caja del box- plot entre el cuantil 25 y el 75:
+
 ```{r, warning=FALSE}
+attach(db)
 db %>% ggplot(., aes(x=y, y=x))+ 
   geom_boxplot()+ 
   ggtitle("Box-plot ")+
@@ -199,15 +211,20 @@ db %>% ggplot(., aes(x=y, y=x))+
 ```
 **Matriz de Autocorrelación**
 
+Tambien se realiza una matriz de correlación:
+
 ```{r}
 db %>% as.matrix() %>% cor() %>% corrplot(., method="number")
 ```
 
+Ahora, se presentan propuestas para estos datos, usando métodos paramétricos y métodos no paramétricos. De la siguiente manera:
 
-\subsection{Modelo Parametrico}
+\subsection{Modelo Paramétrico}
+
 
 **Modelo lineal** 
 
+Se propone el siguiente modelo lineal paramétrico:
 $$Y = \beta_0 + \beta_1x+\epsilon \: ; \: \epsilon \sim N(0, \sigma^2)$$
 
 
@@ -225,12 +242,13 @@ db %>% ggplot(., aes(x=y, y=x)) +
   xlab("Tiempo(seg)")
 ```
 
+Como se evidencia, ajustando la recta de regresión a los datos, vemos como esta se apega muy bien al comportamiento de estos, por lo cual este modelo paramétrico es muy bueno, parsimonioso y suficiente para explicar estos datos. 
 
 \subsection{Modelo No Parametrico}
 
 **Test de Spearmn**
 
-El test de Spearman es la contra parte no parametrica del test de correlación de Pearson, ambos buscan encontrar y cuantificar el grado de relación lineal entre dos variables.
+El test de Spearman es la contra parte no paramétrica del test de correlación de Pearson, ambos buscan encontrar y cuantificar el grado de relación lineal entre dos variables.
 partiendo de lo anterior, como vimos en la sección anterior, las variables x e y presentan un muy buen ajuste lineal que deriva en una dependencia bastante marcada, el test de Spearman nos permitirá corroborar esta dependencia
 y adicionalmente, nos permitiría calcular un valor para la correlación entre las mismas. como veremos a continuación. 
 
@@ -257,7 +275,27 @@ cor.test(db$x, db$y,alternative="greater",method="s")
 ```
 
 
-Para un valor de $\alpha = 0.05$ existe suficiente evidencia para rechazar $H_0$, por lo cual se concluye que existe una fuerte dependencia positiva entre X e y, con unvalor de $\rho = 1$ que indica que es completamente lineal.
+Para un valor de $\alpha = 0.05$ existe suficiente evidencia para rechazar $H_0$, por lo cual se concluye que existe una fuerte dependencia positiva entre X e Y, con un valor de $\rho = 1$ que indica que es completamente lineal.
+
+**Modelo de regresión Theil-Sen**
+
+Este método determina la pendiente de la línea de regresión a través de la mediana de las pendientes de todas las líneas que se pueden dibujar a través de los puntos de datos:Este tipo de estimador de regresión a diferencia de la OLS (mínimos cuadrados ordinarios), es robusto frente a los valores atípicos. Y su estadístico es el siguiente:
+
+$$MTS(X,Y) = median( \frac{Y_l- Y_k}{X_l-X_k}) $$
+
+Ahora, se procede a realizar una regresión Theil-Sen con la base de datos _db_:
+
+```{r}
+library(deming)
+afit1 <- theilsen(x ~ y, symmetric=TRUE)
+afit1
+regresion <- lm(x ~ y)
+plot(y,x,main = 'No parametric Regression Theil Model')
+abline(afit1,col='blue')
+abline(regresion,col='red')
+```
+
+Se observa como tambien este modelo se ajusta bastante bien a la distribucion de los datos. Y es muy similar al ajuste realizado por el modelo no paramétrico.
 
 \section{Ejercicio3}
 \subsection{K-nearest neighbors (KNN)}
@@ -401,12 +439,6 @@ College %>% select(Private, Apps, Enroll,Top10perc,Top25perc) %>% head() %>% kab
 
 Para esta sección, mostramos la estructura de los datos, la cual, a groso modo cuenta con datos de 777 universidades 
 
-```{r, echo = TRUE, eval = FALSE}
-fix(College)
-rownames(College)=College[,1]
-College=College [,-1]
-fix(College)
-```
 
 \subsection{I) Use the summary() function to produce a numerical summary of the variables in the data set.}
 
