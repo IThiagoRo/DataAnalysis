@@ -51,6 +51,21 @@ knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
 
+\subsection{a) Datos de entrenamiento y de prueba}
+
+```{r data-ej2}
+data <- read.csv("Data/costumer_loan_details.csv",  stringsAsFactors=TRUE, header = TRUE, sep = ",")
+
+set.seed(123)
+
+smp_sz <- floor(0.75 * nrow(data))
+train_indx <- sample(seq_len(nrow(data)), size = smp_sz)
+
+train <- data[train_indx, ]
+test <- data[-train_indx, ]
+```
+
+
 \section{Ejercicio3}
 <!-- Genaro Aristizabal -->
 
