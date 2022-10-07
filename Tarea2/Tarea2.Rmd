@@ -48,13 +48,382 @@ knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.
 \section{Ejercicio1}
 <!-- Daniel Hoyos -->
 
+
+```{r,}
+#librerias
+#naive bayes
+library(naivebayes)
+library(e1071)
+#knn
+library(MASS)
+library(class)
+library(dummies)
+
+#curva roc y modelo lda
+library(ISLR)
+library(MASS)
+library(Amelia)
+library(pscl)
+library(caret)
+library(pROC)
+library(ROCR)
+library(wesanderson)
+```
+
+```{r db-ej1}
+bank<-read.csv("Data/bank.csv", header = TRUE, sep = ",")
+attach(bank)
+```
+
+
+\subsection{Análisis descriptivo de la base de datos bank}
+
+La base de datos bank, contiene un total de 17 variables y 11.162 observaciones, de las cuales 7 son de tipo numéricas y 10 son de tipo categórica, esta base de datos resume algunas características acerca de clientes de un banco en particular tales como la edad(age), el tipo de trabajo que desempeña(job), el estado marital(marital), nivel educativo(education),si ha cometido o no alguna falta pagos(default), el estado de sus fondos económicos(balance), si el cliente tiene o no algún préstamo de vivienda(housing), si el cliente tiene o no algún préstamo (loan), medio de contacto con el cliente(contact),fecha de afiliación(day, month),tiempo de vencimiento (El tiempo de vencimiento). entre otras, a continuación veremos un pequeño resumen de las variables. 
+
+```{r , include=T}
+summary(bank)
+```
+
+```{r, warning=FALSE, message=FALSE,include=FALSE}
+base<-bank[,c(1,6,10,12,13)]
+
+library(ggplot2)
+library(GGally)
+
+gg2<-ggpairs(base,
+             upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
+                                               method = "lm")),
+             lower=list(continuous ="cor"))
+
+for(i in 1:ncol(base)){
+  gg2[i,i]<-gg2[i,i]+
+    geom_histogram(breaks=hist(base[,i],breaks = "FD",plot=F)$breaks,
+                   
+                   colour = "red",fill="lightgoldenrod1")
+  
+}
+
+
+```
+
+```{r , include=T,echo=F}
+gg2
+```
+
+
+El gráfico anterior es importante para identificar el posible comportamiento de nuestras variables numéricas, en este caso vemos que existe poca relación lineal entre las mismas, situación que nos da una idea de pensar que es poco probable que existan problemas de multicolinealidad.
+
+
+```{r , include=T,echo=F}
+par(mfrow=c(2,3))
+plot(factor(loan),age,xlab='loan',ylab='age',main='loan vs age')
+plot(factor(loan),day,xlab='loan',ylab='day',main='loan vs day')
+plot(factor(loan),duration,xlab='loan',ylab='duration',main='loan vs duration')
+plot(factor(loan),balance,xlab='loan',ylab='balance',main='loan vs balance')
+plot(factor(loan),xlab='loan',main='loan ')
+```
+
+
+La variable loan, es una de las variables de mayor interés en el estudio, es una variable dicótoma que representa si un cliente tiene o no algún préstamo, del gráfico anterior, claramente no hay diferencia en mediana para la variable loan con respecto a  la edad, día ,duración y balance, por otra parte, vemos que la mayoría de personas no tienen ningún tipo de préstamo.
+
+
+## a) cree un conjunto de datos de entrenamiento del 75% y el restante 25% tratetelo como datos de test o prueba.
+
+
+```{r, echo=TRUE}
+df=data.frame(bank)
+smp_sz <- floor(0.75 * nrow(df))
+train_ind <- sample(seq_len(nrow(df)), size = smp_sz)
+
+train <- df[train_ind, ] #datos de Entrenamiento 75%
+test <- df[-train_ind, ] #datos de Test 25%
+
+y_train=df[train_ind,8]
+y_test=df[-train_ind,8]
+```
+
+\subsection{b)Con los datos de entrenamiento implemente naive bayes usando loan como el supervisor y las demas como pedictores.}
+
+El clasificador Naive de Bayes asume que todas las features (componentes del vector x) son independientes y que son igualmente importantes. Con este supuesto, la probabilidad (Likelihood-verosilimitud) de observar el vector de features x = (x1, x2, . . . , xp) con p =1...16 dado que se esta en la clase j es:
+
+
+$Pr(x|Y=j)=Pr(x_1|Y=j)*...*Pr(x_p|Y=j)$
+
+
+Por el teorema de bayes tenemos:
+
+
+$Pr(y=j|x)=\frac{Pr(x|Y=j)(Pr(Y=j))}{Pr(x)}$
+
+
+lo anterior representa un modelo bayesiando donde, la distribucion posterior, esta representada por el producto de la verosimilitud y la probabilidad a priori.
+
+
+ahora, vamos a implementar un modelo de naivebayes para calcular la probabilidad de que los proximos clientes tengan o no un credito.
+
+ 
+
+```{r, echo=TRUE}
+#modelo naive bayes
+naiveB.fit <- naiveBayes(loan~., data=train,laplace=0.128)
+
+#predict train and testing
+predict_test<-predict(naiveB.fit,test,type="class")
+predict_train<-predict(naiveB.fit,train,type="class")
+
+#prediccion probabilidades
+predict_train2<-predict(naiveB.fit,train,type="raw")
+predict_test2<-predict(naiveB.fit,test,type="raw")
+```
+
+\subsection{c) Con los datos de entrenamiento, Implemente un modelo Knn con loan como supervisor y las demás como predictoras. utilizar varios valores de k, pero reportar solo uno.}
+
+El modelo knn también conocido como k vecinos más cercanos, es una metodología muy eficiente que permite a partir de un valor de k, tomar los k valores más cercanos de una estimación para ajustarse a su comportamiento, a medida que incrementamos el valor de k, se tiende a perder la señal y comenzamos a guiarnos por el ruido del modelo, por lo tanto, se debe tener cuidado a la hora de utilizar esta metodología. 
+por otra parte, en este modelo, se deben crear vectores de variables dummy para las variables categóricas, y las variables continuas se deben normalizar. cómo se verá a continuación.
+
+
+
+```{r, echo = TRUE}
+#modelo KNN
+normalize <- function(x) {
+norm <- ((x - min(x))/(max(x) - min(x)))
+return (norm)
+}
+#variables categoricas, a vectores de dummy.
+suppressWarnings(dummyjob<-dummy(df$job, sep="_"))
+suppressWarnings(dummyMarital<-dummy(df$marital, sep="_"))
+suppressWarnings(dummyEducation<-dummy(df$education, sep="_"))
+suppressWarnings(dummydefault<-dummy(df$default ,sep="_"))
+suppressWarnings(dummyhousing<-dummy(df$housing, sep="_"))
+suppressWarnings(dummycontact<-dummy(df$contact ,sep="_"))
+suppressWarnings(dummymonth<-dummy(df$month, sep="_"))
+suppressWarnings(dummypoutcome<-dummy(df$poutcome, sep="_"))
+suppressWarnings(dummydeposit<-dummy(df$deposit, sep="_"))
+
+#normalización de las variables numericas.
+age<-normalize(df$age)
+balance<-normalize(df$balance)
+day<-normalize(df$day)
+duration<-normalize(df$duration)
+campaign<-normalize(df$campaign)
+pdays<-normalize(df$pdays)
+previous<-normalize(df$previous)
+
+#nueva base de datos, con las variables transformadas.
+Newdata<-cbind(df,dummyjob,dummyMarital,dummyEducation,dummydefault,dummyhousing,dummycontact,dummymonth,
+              dummypoutcome, dummydeposit,age,balance,day,duration,campaign,pdays,previous)
+
+#nueva selección de datos de entrenamiento y test
+train1 <- Newdata[ train_ind,18:50 ]
+test1 <- Newdata[-train_ind,18:50 ]
+y_train1=df[train_ind,8]
+y_test1=df[-train_ind,8]
+
+#Modelo 1 k=1
+#fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, k=1, prob=TRUE)
+#fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=1, prob=TRUE)
+
+#Modelo 2 k=2 modelo seleccionado
+fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, k=2, prob=TRUE,use.all=TRUE)
+
+fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=2, prob=TRUE)
+
+#modelo 3 k= 5
+#fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, k=5, prob=TRUE,use.all=TRUE)
+#fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=5, prob=TRUE)
+
+#predict para verificar el ajuste de nuestros datos de Test.
+Predicted_train<-factor(fit.knn_train)
+Predicted_test<-factor(fit.knn_Test)
+
+#probabilidades
+prob_train <- attr(fit.knn_train, "prob")
+prob_test <- attr(fit.knn_Test, "prob")
+```
+
+\subsection{d)Con los datos de entrenamiento, implemente un modelo Logístico con loan como supervisor y las demás como predictoras.}
+
+### Planteamiento del Modelo.
+
+$Logit(\pi_i)=\log(\frac{\pi_i}{1-\pi_i})= \beta_0 + \beta_{1xi1}+ \beta_{2xi2}+...+\beta_{kxik}$
+
+El modelo logístico, es una variación del modelo de regresión lineal en el que la variable respuesta es una variable dicótoma, es decir solo toma 2 valores 0 ó 1, es por esto que el logit, o el logaritmo de la razón de dos se utiliza como su predictor lineal.
+este modelo es naturalmente un modelo de clasificación, por lo anterior, el resultado que se va obtener es la probabilidad asociada a si una persona con diversas características tiene o no un crédito. para mayor comprensión, el modelo ajustado entregara el resultado de evaluar la siguiente expresión:
+
+
+$\pi_i= \frac{e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}{1+e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}$
+
+Si el valor de la probabilidad es mayor a 0.5 entonces esta persona tiene un crédito(loan=si), en caso contrario, no tiene crédito(loan=no).
+
+```{r, echo = TRUE}
+#Modelo logístico.
+lr.fit=glm(as.factor(loan)~., data = train, family=binomial)
+
+#predict para verificar ajuste.
+lrPred_train<-predict(lr.fit,train, type = c("response"))
+lrPred_test<-predict(lr.fit,test, type = c("response"))
+
+#clasificación 
+predict_lr_train<-ifelse(lrPred_train<=0.5,0,1)
+predict_lr_test<-ifelse(lrPred_test<=0.5,0,1)
+```
+
+\subsection{e) Con los datos de entrenamiento, implemente un modelo LDA con loan como supervisor y las demás como predictoras. 
+En LDA se modela la distribución de los predictores X de manera
+separada en cada una de las categorías de respuesta (es decir, condicionando en Y ) y luego se usa el teorema de Bayes para obtener estimaciones de $Pr (Y = k | X = x)$ Cuando estas distribuciones se asumen normales, el modelo es muy similar en forma al de regresión logística. esta probabilidad de clasificaci;on esta dada por:}
+
+$Pr (Y = k | X = x)=\frac{\pi_kf_k(x)}{\sum_{l=1}^{k}\pi_lf_l(x)}$
+
+```{r, echo = TRUE}
+#modelo LDA
+lda.fit <- lda(as.factor(loan) ~., data=train)
+
+#prediccion
+predict_train_lda<-predict(lda.fit,train,type=c("class"))
+predict_test_lda<-predict(lda.fit,test,type=c("class"))
+
+#clasificación
+train_lda<-ifelse(as.factor(train$loan)==predict_train_lda$class,0,1)
+test_lda<-ifelse(as.factor(test$loan)==predict_test_lda$class,0,1)
+```
+
+\subsection{f) Con los datos de entrenamiento calcular training MSE, matriz confusión y curva roc para cada uno de los modelos.}
+
+
+```{r, }
+#training
+
+#Matriz de confusión y  NB error
+t_NB<-table(predict_train,y_train)
+Train_error_NB<-(t_NB[1,2]+t_NB[2,1])/(sum(t_NB))
+sensitidad_NB<-t_NB[2,2]/(t_NB[2,2]+t_NB[1,2])
+especificidad_NB<-t_NB[1,1]/(t_NB[1,1]+t_NB[2,1])
+
+#Matriz de confusión y knn error
+t_KNN<-table(Predicted_train,y_train)
+Train_error_Knn<-(sum(t_KNN[1,2],t_KNN[2,1]))/(sum(t_KNN))
+sensitidad_knn<-t_KNN[2,2]/(t_KNN[2,2]+t_KNN[1,2])
+especificidad_knn<-t_KNN[1,1]/(t_KNN[1,1]+t_KNN[2,1])
+
+#Matriz de confusión y logistic error
+T_lr<-table(as.factor(train$loan),predict_lr_train)
+lr_train_err<-(T_lr[1,2]+T_lr[2,1])/(sum(T_lr))
+sensitidad_lr<-T_lr[2,2]/(T_lr[2,2]+T_lr[1,2])
+especificidad_lr<-T_lr[1,1]/(T_lr[1,1]+T_lr[2,1])
+
+#Matriz de confusión y lda error
+t_Lda<-table(as.factor(train$loan),train_lda)
+LDA_train_err<-(t_Lda[1,2]+t_Lda[2,1])/(sum(t_Lda))
+sensitidad_lda<-t_Lda[2,2]/(t_Lda[2,2]+t_Lda[1,2])
+especificidad_lda<-t_Lda[1,1]/(t_Lda[1,1]+t_Lda[2,1])
+
+list(NaiveBayes=t_NB,Train_NaiveBayes_err=Train_error_NB,
+     Knn=t_KNN,Train_error_Knn=Train_error_Knn,
+     logistic_reg=T_lr,lr_train_err=lr_train_err,
+     Lda=t_Lda,LDA_train_err=LDA_train_err)
+
+
+list(sensitividad_NaiveBayes=sensitidad_NB,Especificidad_NaiveBayes=especificidad_NB,
+     sensitividad_Knn=sensitidad_knn,Especificidad_Knn=especificidad_knn,
+    sensitividad_logistic_reg=sensitidad_lr,Especificidad_lr=especificidad_lr,
+    sensitividad_Lda=sensitidad_lda,Especificidad_LDA=especificidad_lda)
+     
+```
+
+
+```{r, }
+#curvas Roc testing
+
+par(mfrow=c(2,2))
+#roc NB
+plot(roc(as.factor(train$loan),1-predict_train2[,1],direction="<"),
+     col="purple2", lwd=3, main="ROC curve NaiveBayes train",print.auc=T,print.thres = "best")
+
+#roc knn
+plot(roc(as.factor(train$loan),1-prob_train,direction="<"),
+     col="purple2", lwd=3, main="ROC curve Knn k=2 train",print.auc=T,print.thres = "best")
+
+#roc LR
+plot(roc(as.factor(train$loan),lrPred_train,direction="<"),
+     col="purple2", lwd=3, main="ROC curve Logistic regresion train",print.auc=T,print.thres = "best")
+
+#roc LDA
+plot(roc(as.factor(train$loan),1-predict_train_lda$posterior[,1],direction="<"),
+     col="purple2", lwd=3, main="ROC curve LDA train",print.auc=T,print.thres = "best")
+
+```
+
+
+\subsection{g) Con los datos de test calcular training MSE, matriz confusión y curva roc para cada uno de los modelos.}
+
+```{r, }
+#testing
+
+#Matriz de confusión y  NB error
+t1_NB<-table(predict_test,y_test)
+Test_error_NB<-(t1_NB[1,2]+t1_NB[2,1])/(sum(t1_NB))
+
+#Matriz de confusión y knn error
+t1_KNN<-table(Predicted_test,y_test1)
+Test_error_Knn<-(sum(t1_KNN[1,2],t1_KNN[2,1]))/(sum(t1_KNN))
+
+#Matriz de confusión y logistic error
+T1_lr<-table(as.factor(test$loan),predict_lr_test)
+lr_test_err<-(T1_lr[1,2]+T1_lr[2,1])/(sum(T1_lr))
+
+#Matriz de confusión y lda error
+t1_Lda<-table(as.factor(test$loan),test_lda)
+LDA_test_err<-(t1_Lda[1,2]+t1_Lda[2,1])/(sum(t1_Lda))
+sensitidad_ldatest<-t1_Lda[2,2]/(t1_Lda[2,2]+t1_Lda[1,2])
+especificidad_ldatest<-t1_Lda[1,1]/(t1_Lda[1,1]+t1_Lda[2,1])
+
+
+list(NaiveBayes=t1_NB,Test_error_NB=Test_error_NB,
+     Knn=t1_KNN,Test_error_Knn=Test_error_Knn,
+     logistic_reg=T1_lr,lr_test_err=lr_test_err,
+     Lda=t1_Lda,LDA_test_err=LDA_test_err)
+```
+
+```{r , include=T,echo=FALSE}
+#curvas Roc testing
+
+par(mfrow=c(2,2))
+#roc NB
+plot(roc(as.factor(test$loan),1-predict_test2[,1],direction="<"),
+     col="purple2", lwd=3, main="ROC curve NaiveBayes test",print.auc=T,print.thres = "best")
+
+#roc knn
+plot(roc(as.factor(test$loan),1-prob_test,direction="<"),
+     col="purple2", lwd=3, main="ROC curve Knn k=2 test",print.auc=T,print.thres = "best")
+
+#roc LR
+plot(roc(as.factor(test$loan),lrPred_test,direction="<"),
+     col="purple2", lwd=3, main="ROC curve Logistic regresion test",print.auc=T,print.thres = "best")
+
+#roc LDA
+plot(roc(as.factor(test$loan),1-predict_test_lda$posterior[,1],direction="<"),
+     col="purple2", lwd=3, main="ROC curve LDA test",print.auc=T,print.thres = "best")
+
+```
+
+\subsection{h) Con cual modelo observo mejor desempeño y por qué?}
+Para seleccionar el mejor modelo, es muy importante tener claro que es lo que se quiere responder. La variable loan como se dijo anteriormente representa si una persona tiene o no un crédito, esto es importante porque cometer un error de darle un crédito a una persona ya tenía uno o no darle un crédito a una persona que no lo tenía, es una decisión que genera un gran impacto negativo en las ganancias del banco, por lo cual, el modelo seleccionado debe cumplir con unos altos índices de sensitividad y de especificidad.
+de lo anterior, sin duda alguna el modelo LDA, obtuvo unos índices de sensibilidad y de especificad superiores al 96%, lo cual es una excelente tasa de clasificación, por esta razón se selecciona como el mejor modelo, a pesar de que el AUC de las curvas Roc sean similares para todos los demás modelos.
+
+```{r clean-env}
+rm(list = ls())
+```
+
+
+
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
 
 \subsection{a) Datos de entrenamiento y de prueba}
 
-```{r data-ej2}
-data <- read.csv("Data/costumer_loan_details.csv",  stringsAsFactors=TRUE, header = TRUE, sep = ",")
+```{r db-ej2, echo = TRUE}
+data <- read.csv("Data/costumer_loan_details.csv",  
+                 stringsAsFactors=TRUE, header = TRUE, sep = ",")
 
 set.seed(123)
 
