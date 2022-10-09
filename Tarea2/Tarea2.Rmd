@@ -27,8 +27,31 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
+#librerias
+library(magrittr)
+library(kableExtra)
+library(xtable)
+library(corrplot)
 
+#naive bayes
+library(naivebayes)
+library(e1071)
+#knn
+library(MASS)
+library(class)
+library(dummies)
+
+#curva roc y modelo lda
+library(ISLR)
+library(MASS)
+library(Amelia)
+library(pscl)
+library(caret)
+library(pROC)
+library(ROCR)
+library(wesanderson)
 ```
+
 
 ```{=tex}
 \input{DocumentFormat/titlepage.tex}
@@ -49,26 +72,6 @@ knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.
 <!-- Daniel Hoyos -->
 
 
-```{r,}
-#librerias
-#naive bayes
-library(naivebayes)
-library(e1071)
-#knn
-library(MASS)
-library(class)
-library(dummies)
-
-#curva roc y modelo lda
-library(ISLR)
-library(MASS)
-library(Amelia)
-library(pscl)
-library(caret)
-library(pROC)
-library(ROCR)
-library(wesanderson)
-```
 
 ```{r db-ej1}
 bank<-read.csv("Data/bank.csv", header = TRUE, sep = ",")
@@ -425,14 +428,73 @@ rm(list = ls())
 data <- read.csv("Data/costumer_loan_details.csv",  
                  stringsAsFactors=TRUE, header = TRUE, sep = ",")
 
-set.seed(123)
+set.seed(123) 
+
+normalize <- function(x) {
+  norm <- ((x - min(x))/(max(x) - min(x)))
+  return (norm)
+}
 
 smp_sz <- floor(0.75 * nrow(data))
 train_indx <- sample(seq_len(nrow(data)), size = smp_sz)
 
-train <- data[train_indx, ]
-test <- data[-train_indx, ]
+train <- data[train_indx, 10] %>% as.data.frame()
+test  <- data[-train_indx,10] %>% as.data.frame()
+
+y_train <- data[train_indx, 9] 
+y_test <- data[-train_indx, 9]
+
+plot(data$debts, data$income)
 ```
+
+\subsection{b)Implementación de KNN}
+
+```{r}
+fit.knn_train<-knn(train=train, test=train, cl=y_train, k=3, prob=TRUE)
+fit.knn_Test<-knn(train=train, test=test, cl=y_train, k=3, prob=TRUE)
+
+Predicted_train<-factor(fit.knn_train)
+Predicted_test<-factor(fit.knn_Test)
+
+t<-table(Predicted_train,y_train)
+t1<-table(Predicted_test,y_test)
+
+Train_error<-(t[1,2]+t[2,1])/(sum(t))
+Test_error<-(t1[1,2]+t1[2,1])/(sum(t1))
+
+c(Train_error,Test_error)
+```
+
+\subsection{Con los datos de entrenamiento, implemente regresión lineal simple usando income como el supervisor y debts como predictor. Grafique e interprete.}
+
+```{r, echo = TRUE}
+train_df <- cbind(train, y_train) %>% as.data.frame()
+colnames(train_df) <- c("feature", "y_train")
+
+
+corrplot(cor(train_df), method="numb")
+```
+
+
+```{r lm-ej2, echo = TRUE}
+model <- lm(y_train ~ feature, data=train_df)
+```
+
+
+```{r}
+kable(xtable(summary(model)))
+```
+
+```{r}
+library(hrbrthemes)
+
+train_df %>% ggplot(., aes(x=feature, y=y_train))+
+  geom_point()+
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE)+
+  theme_classic()
+  
+```
+
 
 
 \section{Ejercicio3}
