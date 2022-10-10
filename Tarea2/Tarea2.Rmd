@@ -34,6 +34,9 @@ library(kableExtra)
 library(xtable)
 library(corrplot)
 library(hrbrthemes)
+library(ggplot2)
+library(GGally)
+
 
 
 #Selection of variables procedures 
@@ -95,11 +98,9 @@ kable(summary(bank[6:11]))
 kable(summary(bank[12:17]))
 ```
 
-```{r, warning=FALSE, message=FALSE,include=FALSE}
+```{r, warning=FALSE, message=FALSE}
 base<-bank[,c(1,6,10,12,13)]
 
-library(ggplot2)
-library(GGally)
 
 gg2<-ggpairs(base,
              upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
@@ -114,12 +115,10 @@ for(i in 1:ncol(base)){
   
 }
 
-
-```
-
-```{r}
 gg2
 ```
+
+
 
 
 El gráfico anterior es importante para identificar el posible comportamiento de nuestras variables numéricas, en este caso vemos que existe poca relación lineal entre las mismas, situación que nos da una idea de pensar que es poco probable que existan problemas de multicolinealidad.
@@ -430,48 +429,186 @@ rm(list = ls())
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
 
+\subsection{Breve analisis Exploratorio} 
+
+La base de datos costumer_loan_details, cuenta con un 12 variables y 114 observaciones de las cuales 4 son variables de tipo numérico y 8 son variables de tipo categóricas. Dicha base de datos tiene características de los cliente como lo son: state, gender, race, marital_status, occupation, credit_score, income, debts, loan_type, loan_decision_type.  
+
+```{r, fig.align='center', fig.width=80}
+data <- read.csv("Data/costumer_loan_details.csv",  
+                 stringsAsFactors=TRUE, header = TRUE, sep = ",")
+kable(summary(data[2:5]))
+```
+```{r, fig.align='center', fig.width=80}
+kable(summary(data[6:10]))
+```
+```{r,fig.align='center', fig.width=80}
+kable(summary(data[11:12]))
+```
+
+
+
+Del resumen numérico anterior se tiene: 
+
+* El **state** con mayor numero de observaciones es **Other= 68** y el segundo mayor es **OH = 11**.
+
+* El **gender** con mayor numero de observaciones es **Male = 91** y el gender con menor observaciones es **Female = 91**.
+
+* El *age** promedio es de **39 años**.
+
+* El *race** con mayor numero de observaciones es **American Indian or Alaska Native = 26**.
+
+* El **marital_status** con mayor numero de observaciones es **Married = 44** y el siguiente con mayor numero de observaciones es **Single = 43**. 
+
+* La **ocupation** con mayor numero de observaciones es **NYPD = 28** y el siquiente con mayor numero de observaciones es **IT = 27**. 
+
+* El **credit_score** promedio es de **695.8**. 
+
+* El **income** promedio es de **9338**. 
+
+* El **debts** promedio es de **2744**. 
+
+* El **loan_type** con mayor numero de observaciones es **Auto = 40** y el siguiente con mayor numero de observaciones es **Personal = 34**. 
+
+* El **loan_decision_type** con mayor numero de observaciones es **Approved = 70 ** y el siguiente con mayor numero de observaciones es **Denied = 32**. 
+
+```{r, message=FALSE, warning=FALSE}
+base<-data[,c(4,8,10, 9)]
+
+
+gg2<-ggpairs(base,
+             upper=list(continuous = wrap("smooth",alpha = 0.3, size=1.2,
+                                               method = "lm")),
+             lower=list(continuous ="cor"))
+
+for(i in 1:ncol(base)){
+  gg2[i,i]<-gg2[i,i]+
+    geom_histogram(breaks=hist(base[,i],breaks = "FD",plot=F)$breaks,
+                   
+                   colour = "red",fill="lightgoldenrod1")
+  
+}
+
+gg2
+```
+
+Este gráfico nos permite mirar y evidenciar relaciones lineales entre las variables. 
+
+Se puede observar relaciones lineales de interés entre las variables como los son: 
+
+* Se observa una alta correlación  entre las variables **income** y **age** 
+igual a **0.838**.
+
+* Se observa una alta correlación  entre las variables **income** y **debts** 
+igual a **0.818**.
+
+* Se observa una moderada correlación entre las variables **age** y **debts** 
+igual a **0.762**.
+
+* Se observa una baja correlación entre las variables **age** y **credit_score** 
+igual a **0.142**. 
+
+
 ## a) Cree un conjunto de datos de entrenamiento del 75% y el restante 25% trátelo como datos de test o de prueba. 
 
-```{r db-ej2, echo = TRUE}
+Se fija una **semilla = 123** con el fin de permitir replicabilidad del trabajo. Luego procedemos a crear el conjunto
+de datos para entrenamiento **train** de un valor del **75%** de los datos para un total de **85 observaciones** y el 
+conjunto de datos para prueba **test** de un valor del **25%** de los datos para un total de **29 observaciones**. 
+Se define **income** como el supervisor **"Y"** y  la característica **debts** como predictor. 
+
+```{r db-ej2, message=FALSE}
+library(caret)
 data <- read.csv("Data/costumer_loan_details.csv",  
                  stringsAsFactors=TRUE, header = TRUE, sep = ",")
 
 set.seed(123) 
 
-normalize <- function(x) {
-  norm <- ((x - min(x))/(max(x) - min(x)))
-  return (norm)
-}
+
 
 smp_sz <- floor(0.75 * nrow(data))
 train_indx <- sample(seq_len(nrow(data)), size = smp_sz)
 
-train <- data[train_indx, 10] %>% as.data.frame()
-test  <- data[-train_indx,10] %>% as.data.frame()
+train <- scale(data[train_indx, 10])
+test <- data[-train_indx,10]
+test_scale  <- scale(data[-train_indx,10])
 
 y_train <- data[train_indx, 9] 
 y_test <- data[-train_indx, 9]
 
-plot(data$debts, data$income)
 ```
 
 \subsection{b)Con los datos de entrenamiento, implemente Knn(con al menos tres valores para k) usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
-```{r}
-fit.knn_train<-knn(train=train, test=train, cl=y_train, k=3, prob=TRUE)
-fit.knn_Test<-knn(train=train, test=test, cl=y_train, k=3, prob=TRUE)
+```{r knn-ej2, echo=TRUE}
+knnmodel = knnreg(train, y_train, k = 16)
 
-Predicted_train<-factor(fit.knn_train)
-Predicted_test<-factor(fit.knn_Test)
+pred_y = predict(knnmodel, data.frame(test_scale))
 
-t<-table(Predicted_train,y_train)
-t1<-table(Predicted_test,y_test)
+mse = mean((y_test - pred_y)^2)
+mae = caret::MAE(y_test, pred_y)
+rmse = caret::RMSE(y_test, pred_y)
 
-Train_error<-(t[1,2]+t[2,1])/(sum(t))
-Test_error<-(t1[1,2]+t1[2,1])/(sum(t1))
-
-c(Train_error,Test_error)
+cat("MSE: ", mse, "MAE: ", mae, " RMSE: ", rmse)
 ```
+
+
+```{r}
+r1 <- cbind(test, y_test, 1) 
+r2 <- cbind(test, pred_y, 2)
+
+new_df <- rbind(r1, r2) %>% as.data.frame()
+new_df$V3 <- as.factor(new_df$V3)
+colnames(new_df) <- c("test", "y", "Valor")
+new_df <- new_df %>% mutate(., Valor = if_else(Valor == "1", "Real", "Predicho"))
+
+ggplot(new_df, aes(test, y, shape=Valor, size = Valor, color = Valor)) + 
+  geom_point(size = 4)+
+  scale_colour_discrete("Valor")+
+  xlab("Debts")+
+  ylab("Income")+
+  ggtitle("Datos de prueba (Test)")+
+  theme_bw()
+```
+
+
+
+```{r}
+ggplot(new_df, aes(test, y, color = Valor)) + 
+  geom_line()+
+  geom_point()+
+  scale_colour_discrete("Valor")+
+  xlab("Debts")+
+  ylab("Income")+
+  ggtitle("Datos de prueba (Test)")+
+  theme_bw()
+```
+
+
+```{r}
+n_iterations =  50
+
+ans = c()
+
+for(i in 1:n_iterations){
+  knnmodel = knnreg(train, y_train, k = i)
+  pred_y = predict(knnmodel, data.frame(test_scale))
+
+  mse = mean((y_test - pred_y)^2)
+  ans[i] <- mse
+}
+
+db <- data.frame(k=c(1:n_iterations), db=ans)
+
+db %>%
+  ggplot(aes(k,db)) + geom_line() +
+  geom_vline(xintercept = 16, linetype = 'dashed') +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0,n_iterations,2)) +
+  labs(title = 'MSE para diferentes valores de k')+
+  ylab("MSE")
+
+```
+
+
 
 \subsection{c) Con los datos de entrenamiento, implemente regresión lineal simple usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
@@ -501,33 +638,25 @@ train_df %>% ggplot(., aes(x=feature, y=y_train))+
   
 ```
 
-\subsection{d) Use los respectivos ajuste de cada uno de los modelos anteriores y con el conjunto de prueba, calcule el test-MSE. Qué observa?
-}
+\subsection{d) Use los respectivos ajuste de cada uno de los modelos anteriores y con el conjunto de prueba, calcule el test-MSE. Qué observa?}
 
 \subsection{e) Usando todos los datos y regresión lineal multiple seleccione un modelo usando forward, backward y stepwise}
 
-```{r, eval = FALSE}
-data_num <- data %>% select(age, credit_score, debts, income) %>% as.data.frame()
+## Forward
 
-corrplot(cor(data_num), type = "upper" , method = "numb")
-```
-
-
-
-```{r lm-multi, echo = TRUE}
-model <- lm(income ~ ., data = data[, 2:12, ])
-```
-
-
-```{r, echo = TRUE, fig.width=70}
+```{r, fig.width=70}
 ols_step_forward_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
-```{r, echo=TRUE, fig.width=80}
+## Backward
+
+```{r, fig.width=80}
 ols_step_backward_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
-```{r, echo=TRUE, fig.width=70}
+## Stepwise 
+
+```{r, fig.width=70}
 ols_step_both_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
