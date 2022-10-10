@@ -25,13 +25,19 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
+knitr::opts_chunk$set(echo = FALSE, erro = TRUE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
 #librerias
+library(tidyverse)
 library(magrittr)
 library(kableExtra)
 library(xtable)
 library(corrplot)
+library(hrbrthemes)
+
+
+#Selection of variables procedures 
+library(olsrr)
 
 #naive bayes
 library(naivebayes)
@@ -74,7 +80,7 @@ library(wesanderson)
 
 
 ```{r db-ej1}
-bank<-read.csv("Data/bank.csv", header = TRUE, sep = ",")
+bank<-read.csv("Data/bank.csv", stringsAsFactors=TRUE, header = TRUE, sep = ",")
 attach(bank)
 ```
 
@@ -83,8 +89,10 @@ attach(bank)
 
 La base de datos bank, contiene un total de 17 variables y 11.162 observaciones, de las cuales 7 son de tipo numéricas y 10 son de tipo categórica, esta base de datos resume algunas características acerca de clientes de un banco en particular tales como la edad(age), el tipo de trabajo que desempeña(job), el estado marital(marital), nivel educativo(education),si ha cometido o no alguna falta pagos(default), el estado de sus fondos económicos(balance), si el cliente tiene o no algún préstamo de vivienda(housing), si el cliente tiene o no algún préstamo (loan), medio de contacto con el cliente(contact),fecha de afiliación(day, month),tiempo de vencimiento (El tiempo de vencimiento). entre otras, a continuación veremos un pequeño resumen de las variables. 
 
-```{r , include=T}
-summary(bank)
+```{r, fig.align='center', fig.width=70, fig.height=80}
+kable(summary(bank[1:5]))
+kable(summary(bank[6:11]))
+kable(summary(bank[12:17]))
 ```
 
 ```{r, warning=FALSE, message=FALSE,include=FALSE}
@@ -109,7 +117,7 @@ for(i in 1:ncol(base)){
 
 ```
 
-```{r , include=T,echo=F}
+```{r}
 gg2
 ```
 
@@ -422,7 +430,7 @@ rm(list = ls())
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
 
-\subsection{a) Datos de entrenamiento y de prueba}
+## a) Cree un conjunto de datos de entrenamiento del 75% y el restante 25% trátelo como datos de test o de prueba. 
 
 ```{r db-ej2, echo = TRUE}
 data <- read.csv("Data/costumer_loan_details.csv",  
@@ -447,7 +455,7 @@ y_test <- data[-train_indx, 9]
 plot(data$debts, data$income)
 ```
 
-\subsection{b)Implementación de KNN}
+\subsection{b)Con los datos de entrenamiento, implemente Knn(con al menos tres valores para k) usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
 ```{r}
 fit.knn_train<-knn(train=train, test=train, cl=y_train, k=3, prob=TRUE)
@@ -465,14 +473,14 @@ Test_error<-(t1[1,2]+t1[2,1])/(sum(t1))
 c(Train_error,Test_error)
 ```
 
-\subsection{Con los datos de entrenamiento, implemente regresión lineal simple usando income como el supervisor y debts como predictor. Grafique e interprete.}
+\subsection{c) Con los datos de entrenamiento, implemente regresión lineal simple usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
 ```{r, echo = TRUE}
 train_df <- cbind(train, y_train) %>% as.data.frame()
 colnames(train_df) <- c("feature", "y_train")
 
 
-corrplot(cor(train_df), method="numb")
+corrplot(cor(train_df), method="numb", type="upper")
 ```
 
 
@@ -486,8 +494,6 @@ kable(xtable(summary(model)))
 ```
 
 ```{r}
-library(hrbrthemes)
-
 train_df %>% ggplot(., aes(x=feature, y=y_train))+
   geom_point()+
   geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE)+
@@ -495,6 +501,37 @@ train_df %>% ggplot(., aes(x=feature, y=y_train))+
   
 ```
 
+\subsection{d) Use los respectivos ajuste de cada uno de los modelos anteriores y con el conjunto de prueba, calcule el test-MSE. Qué observa?
+}
+
+\subsection{e) Usando todos los datos y regresión lineal multiple seleccione un modelo usando forward, backward y stepwise}
+
+```{r, eval = FALSE}
+data_num <- data %>% select(age, credit_score, debts, income) %>% as.data.frame()
+
+corrplot(cor(data_num), type = "upper" , method = "numb")
+```
+
+
+
+```{r lm-multi, echo = TRUE}
+model <- lm(income ~ ., data = data[, 2:12, ])
+```
+
+
+```{r, echo = TRUE, fig.width=70}
+ols_step_forward_aic(lm(income ~., data=data[, 2:12,]))
+```
+
+```{r, echo=TRUE, fig.width=80}
+ols_step_backward_aic(lm(income ~., data=data[, 2:12,]))
+```
+
+```{r, echo=TRUE, fig.width=70}
+ols_step_both_aic(lm(income ~., data=data[, 2:12,]))
+```
+
+\subsection{f) Seleccione uno de los modelos del paso anterior y responda con argumentación la pregunta: Ajusta bien dicho modelo?}
 
 
 \section{Ejercicio3}
