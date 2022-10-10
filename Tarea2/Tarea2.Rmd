@@ -774,9 +774,724 @@ ols_step_both_aic(lm(income ~., data=data[, 2:12,]))
 
 Dado que los métodos de selección automáticos como: Forward y Stepwise nos indican que dos modelo plausibles para explicar **income** son el modelo con la covariable **marital_status** y el modelo con la covariable **debts** obtamos por seleccionar el modelo con la covariable **debts** ya que cuenta con una de las mejores metricas(AIC, R-sq, Adj.R-sq) dadas por el metodo de selección automático de variables y como vimos anteriormente es un modelo que cumple con los supuesto de un modelo lineal ademas de tener una mejor predicción que los modelos de regresión Knn visto en este trabajo. Lo que nos permite concluir que dicho modelo es adecuado y tiene un buen ajuste. 
 
+\section{Punto 3}
 
-\section{Ejercicio3}
-<!-- Genaro Aristizabal -->
+Se utilizan las técnicas ___ridge___ y ___lasso___ para regularizar las bases de datos __DATOS_A__ y __DATOS_B__. Se busca saber __¿Cuáles variables aparentemente muestran no ser relevantes para explicar la variable aleatoria Y?__
 
-\section{Ejercicio4}
-<!-- Genaro Aristizabal -->
+```{r, warning=FALSE,message=FALSE}
+# cargado de librerias
+library(tidyverse) # punto 3
+library(dbplyr)
+library(ggplot2)
+library(corrplot) 
+require(olsrr) # punto 4
+library(kableExtra)
+require(leaps)
+require(glmnet) # ridge y lasso
+```
+
+
+Primeramente, es menester cargar las bases de datos y descubrir la estructura y comportamiento de dichas bases:
+
+### DATOS_A
+
+Se procede a cargar y examinar la base de datos:
+
+```{r}
+# cargando la base DATOS_A
+datos_a <- read.table(file = "Data/DATOS_A.txt", header = T, sep = )
+head(datos_a) # cabecera de los datos
+tail(datos_a) # cola de los datos
+```
+
+```{r}
+str(datos_a) # estructura y tipo de variables presentes en la base
+```
+
+Se observa como la base de datos __datos_a__ no presenta valores *NA*, además, todas las variables presentes en ella son de tipo numérico, cuenta con 15 variables (Y, X1, X2, ..., X14) y 1767 observaciones.
+
+### Análisis descriptivo
+
+A manera descriptiva se realizará una matriz de correlación de los datos.
+
+```{r}
+#library(corrplot)
+
+# create correlation matrix
+corr.data <- cor(datos_a)
+# correlation plot of quantitative variables
+corrplot(corr.data, method = 'ellipse', order='AOE', type = 'upper')
+```
+
+Se observa como las covariables que tienen más correlación con la variable respuesta __Y__ son __X10__ y __X6__ con correlación positiva y negativa respectivamente.
+
+Luego de haber realizado el análisis descriptivo y haber examinado la base de datos, se procede con las técnicas de regularización mediante regresión ___ridge___ y ___lasso___.
+
+## Ridge
+
+Los métodos de __subset__ emplean mínimos cuadrados ordinarios (OLS) para ajustar un modelo lineal que contiene únicamente un subconjunto de predictores. Otra alternativa, conocida como regularización o __shrinkage__, consiste en ajustar el modelo incluyendo todos los predictores pero aplicando una penalización que fuerce a que las estimaciones de los coeficientes de regresión tiendan a cero. Con esto se intenta evitar __overfitting__, reducir varianza, atenuar el efecto de la correlación entre predictores y minimizar la influencia en el modelo de los predictores menos relevantes. Por lo general, aplicando regularización se consigue modelos con mayor poder predictivo (generalización). En esta ocasión, se utilizan los métodos de regularización Ridge y Lasso.
+
+La regularización Ridge penaliza la suma de los coeficientes elevados al cuadrado $\left ( \left\| \beta \right\|^2 = \sum_{j =1}^{p} |\beta_j|^2 \right )$, La cual tiene el efecto de reducir de forma proporcional el valor de todos los coeficientes del modelo pero sin que estos lleguen a cero. El grado de penalización está controlado por el hiperparámetro $\lambda$. Cuando $\lambda = 0$, la penalización es nula y el resultado es equivalente al de un modelo lineal por mínimos cuadrados ordinarios (OLS). A medida que $\lambda$ aumenta, mayor es la penalización y menor el valor de los predictores.
+
+A continuación, se presenta la realización de una regresión ___Ridge___ para la base __datos_a__:
+
+Primero se crea el modelo de regresión __ridge__:
+
+```{r}
+#require(glmnet) # instaler paquete
+
+# se crea el modelo
+x<-model.matrix(Y~.,datos_a)[,-1]
+y<-datos_a$Y
+
+gridz<-10^seq(-2,10, length=100)
+ridge.mod<-glmnet(x,y,alpha=0, lambda=gridz)
+
+dim(coef(ridge.mod))
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+plot(ridge.mod, xvar="lambda", label=TRUE, 
+     main="The std ridge reg coef")
+plot(ridge.mod, xvar="norm", label=TRUE, 
+     main="Ridge regr coef using L1 norm")
+```
+
+De los dos gráficos, se observa como en el de los coeficientes estandarizados los valores convergen a cero a un valor loglambda aproximadamente igual a siete. Mientras que, en el segundo gráfico de los coeficientes usando L1 norm, los valores de los coeficientes de la regresión ridge convergen cuando este valor L1 es 0.
+
+Luego, con los resultados obtenidos anteriormente, se procede a realizar la validación cruzada para cada valor de $\lambda$ y así estimar el error de validación cruzada.
+
+```{r}
+cedula<-1
+set.seed(cedula) 
+train<-sample(1: nrow(x), nrow(x)/2)
+test<- -train
+y.test<-y[test]
+cv.out<-cv.glmnet(x[train,],y[train],alpha=0)
+cv.out
+```
+
+Después, se escoge el "mejor" $\lambda$, es decir, el que produzca el menor error.
+
+```{r}
+plot(cv.out)
+bestlam<-cv.out$lambda.min
+bestlam
+log(bestlam)
+```
+
+En este caso, se obtuvo que $\lambda = 0.8085394$ es el "mejor", es decir, el que produce el menor error.
+
+Y finalmente, se realizan las predicciones del modelo de regresión __ridge__ para los coeficientes de las variables predictoras.
+
+```{r}
+ridge.pred<-predict(ridge.mod, s=bestlam,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+out<-glmnet (x,y,alpha=0)
+# names(out)
+# plot(out$lambda,out$a0)
+predict(out,type="coefficients",s=bestlam)[1:15,]
+```
+
+## Lasso
+
+La regularización Lasso penaliza la suma del valor absolutos de los coeficientes de regresión $\left ( \left\| \beta \right\| = \sum_{j =1}^{p} |\beta_j| \right )$. Lo cual tiene el efecto de forzar a que los coeficientes de los predictores tiendan a cero. Dado que un predictor con coeficiente de regresión cero no influye en el modelo, lasso consigue excluir los predictores menos relevantes. Al igual que en ridge, el grado de penalización está controlado por el hiperparámetro $\lambda$. Cuando $\lambda = 0$, el resultado es equivalente al de un modelo lineal por mínimos cuadrados ordinarios. A medida que $\lambda$ aumenta, mayor es la penalización y más predictores quedan excluidos.
+
+Seguidamente, se presenta la realización de una regresión ___Lasso___ para la base __datos_a__:
+
+Primero se crea el modelo de regresión __lasso__:
+
+```{r}
+# regresión lasso
+lasso.mod<-glmnet(x,y,alpha=1, lambda=gridz)
+
+dim(coef(lasso.mod))
+```
+
+Luego se grafican la regresión buscando observar el valor de lambda adecuado:
+
+```{r}
+par(mfrow=c(1,2))
+
+suppressWarnings( plot(lasso.mod, xvar="lambda", label=TRUE))
+suppressWarnings( plot(lasso.mod, xvar="norm", label=TRUE, 
+     main="Lasso reg coef using L1 norm"))
+```
+
+De los dos gráficos, se observa como en el de los coeficientes estandarizados los valores convergen a cero a un valor loglambda entre 0 y 1. Mientras que, en el segundo gráfico de los coeficientes usando L1 norm, los valores de los coeficientes de la regresión lasso convergen cuando este valor L1 es 4 aproximadamente.
+
+Luego, con los resultados obtenidos anteriormente, se procede a realizar la validación cruzada para cada valor de $\lambda$ y así estimar el error de validación cruzada.
+
+```{r}
+cedula<-123
+set.seed(cedula) 
+train<-sample(1: nrow(x), nrow(x)/2)
+test<- -train
+y.test<-y[test]
+cv.out<-cv.glmnet(x[train,],y[train],alpha=1)
+
+plot(cv.out)
+bestlam<-cv.out$lambda.min
+bestlam
+log(bestlam)
+```
+
+Se obtuvo que $\lambda = 0.2042918$ es el "mejor", es decir, el que produce el menor error.
+
+Y finalmente, se realizan las predicciones del modelo de regresión lasso para los coeficientes de las variables predictoras.
+
+```{r}
+lasso.pred<-predict(lasso.mod, s=bestlam,newx=x[test,])
+mean((lasso.pred-y.test)^2)
+
+out<-glmnet (x,y,alpha=1)
+lasso.coef<-predict(out,type="coefficients",s=bestlam)[1:15,]
+lasso.coef
+
+```
+
+```{r}
+lasso.coef[lasso.coef!=0] # arroja los coeficientes lasso distintos de 0
+```
+
+Note que, en estos últimos resultados arrojados por el R, se muestra como a diferencia de la regresion ridge, lasso fuerza y los hace cero a los coeficientes que con este criterio son los que menos aportan a explicar la variable __Y__. Por lo cual, las variables que si se toman en cuenta por la regresión lasso son las variables __X1__, __X2__, __X3__, __X4__, __X6__, __X8__, __X10__ y __X14__.
+
+## Conclusiones y respuesta a la pregunta planteada
+
+- Se observa como usando la regresión ridge, esta nos arrojó un $\lambda = 0.80$ el cual es mejor para minimizar el RSS. Además, los coeficientes arrojados por este tipo de regresión después de haber aplicado validación cruzada muestra aparentemente que, las variables que muestran no ser relevantes para explicar la variable respuesta __Y__ son las variables __X9__, __X11__ y __X12__, ya que son las que presentan los valores de los coeficientes más cercanos a cero en comparación con las demás. 
+
+- Se observa como usando la regresión lasso, esta nos arrojó un $\lambda = 0.20$ el cual es mejor para minimizar el RSS. Además, los coeficientes arrojados por este tipo de regresión después de haber aplicado validación cruzada muestra aparentemente que, las variables que muestran no ser relevantes para explicar la variable respuesta __Y__ son las variables que no se toman en cuenta por la regresión lasso en la estimación de coeficientes mediante Cv. Es decir, las variables __X5__, __X6__, __X7__, __X9__, __X11__, __X12__ y __X13__.
+
+### DATOS_B
+
+Se procede a cargar y examinar la base de datos:
+
+```{r}
+# cargando la base DATOS_B
+datos_b <- read.table(file = "Data/DATOS_B.txt", header = T, sep = )
+head(datos_b) # cabecera de los datos
+tail(datos_b) # cola de los datos
+```
+
+```{r}
+str(datos_b) # estructura y tipo de variables presentes en la base
+```
+
+Se observa como la base de datos __datos_b__ no presenta valores *NA*, además, tres de sus  variables son de tipo int (entero), aunque la variable __X2__ podría ser de tipo factor, ya que solo cuenta con valores de 0 y 1. Y la variable __X3__ es de tipo caracter, que cuenta con los 7 días de la semana. La base cuenta con 4 variables (Y, X1, X2, X3) y 728 observaciones.
+
+```{r}
+# convirtiendo las variables X2 y X3 a factor
+datos_b$X2 <- as.factor(datos_b$X2)
+datos_b$X3 <- as.factor(datos_b$X3)
+
+str(datos_b) # estructura y tipo de variables presentes en la base
+```
+
+### Análisis descriptivo
+
+Se presentan algunos análisis descriptivos que ayudan a dilucidar el comportamiento de las covaraibles X¨s con respecto a la variable respuesta Y.
+
+```{r, fig.height= 3.8, fig.width= 7}
+cor(datos_b$Y,datos_b$X1) # correlación entre Y y X1
+plot(datos_b$X1,datos_b$Y, xlab = "X1", ylab = "Y", # gráfico de Y vs X1
+     main = "Gráfico Y vs X1")
+```
+
+Se observa como la Corr(Y, X1) = 0.91, lo cual implica que existe alta correlación positiva entre las variables. Por otro lado, el gráfico entre estas variables, muestra como existe una relación cuadrática o cúbica entre estas dos variables.
+
+```{r, fig.height= 3.8, fig.width= 6, echo=FALSE}
+X2_t <- c(525, 203)
+xx <- barplot(X2_t, legend.text = c("0","1"), xlab = "X2", ylab = "Frecuencia relativa", col = c("lightblue", "mistyrose"), main = "Barplot de la variable X2", ylim = c(0, 600))
+text(x=xx, y= X2_t, pos=3, cex=0.9, col="dark blue",
+     label= X2_t)
+```
+
+Del gráfico del barplot de la variable X1 con respecto a la variable Y, se observa la diferencia entre las frecuencias en los valores "0" y "1" de la varaible X2.
+
+```{r, echo=FALSE,message=FALSE}
+myPal <- c(
+  rgb(0, 94, 255, maxColorValue = 255),  
+  rgb(255, 0, 174, maxColorValue = 255),  
+  rgb(255, 136, 0, maxColorValue = 255),  
+  rgb(119, 255, 0, maxColorValue = 255),
+  rgb(209, 255, 0, maxColorValue = 255),
+  rgb(600, 255, 0, maxColorValue = 800),
+  rgb(300, 255, 0, maxColorValue = 400))
+```
+
+
+```{r,fig.width=8, fig.height= 4.2, fig.width= 7, echo=FALSE}
+dias <- factor(datos_b$X3, levels = c("LUN","MAR","MIE","JUE","VIE", "SAB", "DOM"))
+boxplot(datos_b$Y~ dias,
+        col = myPal, ylab = "Y", main = "Boxplot por días")
+```
+
+Se observa en el gráfico de boxplot por días, como todas las cajas correspondientes a los días de la semana se encuentran centradas alrededor del valor de 500 de la variable Y. Además, los días que presentan mayor variabilidad en sus cajas son los lunes, martes, miércoles y viernes.
+
+Luego de haber realizado el análisis descriptivo y haber examinado la base de datos, se procede con las técnicas de regularización mediante regresión ___ridge___ y ___lasso___.
+
+Recordar que, el objetivo principal de estas metodologias es reducir la varianza de los estimadores de los paramteros, y con ello, dar respuesta a la pregunta de interes.
+
+## Ridge
+
+Como se pudo notar ya se detallo anteriormente el uso y funcionamiento del metodo, asi que ahora solo se procde a mostrar los resultados arrojados en este caso para la base __datos_b__.
+
+```{r}
+#require(glmnet) # instaler paquete
+x_b<-model.matrix(Y~.,datos_b)[,-1]
+y_b<-datos_b$Y
+
+gridz<-10^seq(-2,10, length=100)
+ridge.mod_b<-glmnet(x_b,y_b,alpha=0, lambda=gridz)
+
+dim(coef(ridge.mod_b))
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+plot(ridge.mod_b, xvar="lambda", label=TRUE, 
+     main="The std ridge reg coef")
+plot(ridge.mod_b, xvar="norm", label=TRUE, 
+     main="Ridge regr coef using L1 norm")
+```
+
+
+```{r}
+ced<-123
+set.seed(ced) 
+train_b<-sample(1: nrow(x_b), nrow(x_b)/2)
+test_b<- -train_b
+yb.test<-y_b[test_b]
+cv.out_b<-cv.glmnet(x[train_b,],y_b[train_b],alpha=0)
+cv.out_b
+```
+
+```{r}
+plot(cv.out_b)
+bestlam_b<-cv.out_b$lambda.min
+bestlam_b
+log(bestlam_b)
+```
+
+```{r}
+ridge.pred_b<-predict(ridge.mod_b, s=bestlam_b,newx=x_b[test_b,])
+mean((ridge.pred_b-yb.test)^2)
+out_b<-glmnet (x,y,alpha=0)
+# names(out)
+# plot(out$lambda,out$a0)
+predict(out_b,type="coefficients",s=bestlam_b)[1:15,]
+```
+
+## Lasso
+
+Como se pudo notar ya se detalló anteriormente el uso y funcionamiento del método, así que ahora solo se procede a mostrar los resultados arrojados en este caso para la base __datos_b__.
+
+```{r}
+# regresión lasso
+lasso.mod<-glmnet(x,y,alpha=1, lambda=gridz)
+
+dim(coef(lasso.mod))
+```
+
+Luego se grafican la regresión buscando observar el valor de lambda adecuado:
+
+```{r}
+par(mfrow=c(1,2))
+
+suppressWarnings( plot(lasso.mod, xvar="lambda", label=TRUE))
+suppressWarnings( plot(lasso.mod, xvar="norm", label=TRUE, 
+     main="Lasso reg coef using L1 norm"))
+```
+
+De los dos gráficos, se observa como en el de los coeficientes estandarizados los valores convergen a cero a un valor loglambda entre 0 y 1. Mientras que, en el segundo gráfico de los coeficientes usando L1 norm, los valores de los coeficientes de la regresión lasso convergen cuando este valor L1 es 4 aproximadamente.
+
+Luego, con los resultados obtenidos anteriormente, se procede a realizar la validación cruzada para cada valor de $\lambda$ y así estimar el error de validación cruzada.
+
+```{r}
+cedula<-123
+set.seed(cedula) 
+train<-sample(1: nrow(x), nrow(x)/2)
+test<- -train
+y.test<-y[test]
+cv.out<-cv.glmnet(x[train,],y[train],alpha=1)
+
+plot(cv.out)
+bestlam<-cv.out$lambda.min
+bestlam
+log(bestlam)
+```
+
+Se obtuvo que $\lambda = 0.2042918$ es el "mejor", es decir, el que produce el menor error.
+
+Y finalmente, se realizan las predicciones del modelo de regresión lasso para los coeficientes de las variables predictoras.
+
+```{r}
+lasso.pred<-predict(lasso.mod, s=bestlam,newx=x[test,])
+mean((lasso.pred-y.test)^2)
+
+out<-glmnet (x,y,alpha=1)
+lasso.coef<-predict(out,type="coefficients",s=bestlam)[1:15,]
+lasso.coef
+
+```
+
+```{r}
+lasso.coef[lasso.coef!=0] # arroja los coeficientes lasso distintos de 0
+```
+
+Note que, en estos últimos resultados arrojados por el R, se muestra como a diferencia de la regresion ridge, lasso fuerza y los hace cero a los coeficientes que con este criterio son los que menos aportan a explicar la variable __Y__. Por lo cual, las variables que si se toman en cuenta por la regresión lasso son las variables __X1__, __X2__, __X3__, __X4__, __X6__, __X8__, __X10__ y __X14__.
+
+## Conclusiones y respuesta a la pregunta planteada
+
+- Se observa como usando la regresión ridge, esta nos arrojó un $\lambda = 0.80$ el cual es mejor para minimizar el RSS. Además, los coeficientes arrojados por este tipo de regresión después de haber aplicado validación cruzada muestra aparentemente que, las variables que muestran no ser relevantes para explicar la variable respuesta __Y__ son las variables __X9__, __X11__ y __X12__, ya que son las que presentan los valores de los coeficientes más cercanos a cero en comparación con las demás. 
+
+- Se observa como usando la regresión lasso, esta nos arrojó un $\lambda = 0.20$ el cual es mejor para minimizar el RSS. Además, los coeficientes arrojados por este tipo de regresión después de haber aplicado validación cruzada muestra aparentemente que, las variables que muestran no ser relevantes para explicar la variable respuesta __Y__ son las variables que no se toman en cuenta por la regresión lasso en la estimación de coeficientes mediante Cv. Es decir, las variables __X5__, __X6__, __X7__, __X9__, __X11__, __X12__ y __X13__.
+
+\section{Punto 4}
+
+Utilizando los métodos de selección y validación cruzada, se realiza un análisis de la base de datos ***surgical*** del paquete ___olsrr___ donde se seleccionen las variables más importantes para explicar la variabilidad del tiempo de supervivencia.
+
+Primero, es menester poner en contexto acerca de la base ***surgical***. Dicha base cuenta con información sobre la supervivencia de los pacientes que se someten a una operación de hígado. Está compuesta por 54 registros y 9 variables, las cuales se detallan a continuación:
+
+- __bcs:__ puntaje de coagulación de la sangre.
+
+- __pindex:__ índice de pronóstico.
+
+- __enzyme_test:__ puntaje de la prueba de función enzimática.
+
+- __liver_test:__ puntuación de la prueba de función hepática.
+
+- __age:__ edad en años.
+
+- __gender:__ variable indicadora de género (0 = masculino, 1 = femenino).
+
+- __alc_mod:__ variable indicadora de antecedentes de consumo de alcohol (0 = ninguno, 1 = moderado).
+
+- __alc_heavy:__ variable indicadora de antecedentes de consumo de alcohol fuerte (0 = Ninguno, 1 = Mucho).
+
+- __y:__ tiempo de supervivencia.
+
+se procede a examinar la base de datos:
+
+```{r}
+# require(olsrr) # paqute donde se encuentra la base surgical
+
+# base de datos SRUGICAL
+names(surgical) # nombres de las columnas
+dim(surgical) # dimensión de la base
+head(surgical) # cabecera de la base
+tail(surgical) # cola de la base
+str(surgical) # estructura y tipo de variables presentes en la base
+
+# se convierten las variables gender, alc_mod y alc_heavy
+surgical$gender <- as.factor(surgical$gender)
+surgical$alc_mod <- as.factor(surgical$alc_mod)
+surgical$alc_heavy <- as.factor(surgical$alc_heavy)
+```
+
+Note que la base cuenta con todas sus variables numéricas, aunque se sabe que las variables __gender__, __alc_mod__ y __alc_heavy__ son de tipo indicadoras y cualitativas, correspondientes con el género e antedecentes de consumo de alcohol respectivamente. La base no cuenta con valores *NA*.
+
+Adicionalmente, se presenta una tabla con los datos que contiene la base ***surgical***.
+
+```{r}
+# tabla de la base surgical
+kable(surgical, booktabs = TRUE,format = "latex",
+caption = "Base Surgical",
+col.names = c("bcs", "pindex", "enzyme_test", "liver_test", 
+              "age", "gender", "alc_mod",   "alc_heavy",  "y")) %>%
+kable_styling( latex_options = c("striped", "condensed","HOLD_position"),
+position = "center",
+full_width = FALSE)
+```
+
+### Análisis descriptivo
+
+Como un análisis descriptiva se realiza una matriz de correlación de los datos.
+
+```{r}
+#library(corrplot)
+datos_sur <- surgical[,c(1,2,3,4,5,9)]
+# create correlation matrix
+corr_sur <- cor(datos_sur)
+# correlation plot of quantitative variables
+corrplot(corr_sur, method = 'ellipse', order='AOE', type = 'upper')
+```
+
+Del gráfico de correlaciones, se observa como la variable __liver_test__ es la que presenta mayor correlación positiva con respecto a la variable __y__. Es decir que, la puntuación de la prueba de función hepática está muy relacionada de manera directamente proporcional con el tiempo de supervivencia de los pacientes que se someten a una operación de hígado.
+
+Después de poner a punto los datos y haber analizado los mismos, se realiza el proceso de selección y validación cruzada usando los métodos de ___best subset___, ___backward___, ___forward___ y ___stepwise___. Además de aplicar la validación cruzada.
+
+## "Best" Subset
+
+Primero se procede a seleccionar el "mejor" subconjunto para estos datos:
+
+```{r}
+regfit.full<-regsubsets(y~., data= surgical, nvmax=NULL, method = "exhaustive") 
+#nvmax: maximum size of subsets to examine
+
+reg.summary<-summary(regfit.full)
+reg.summary
+
+with(summary(regfit.full), data.frame(rsq,adjr2, cp, rss, bic, outmat))
+
+names(reg.summary)
+```
+
+Luego, se presentan los gráficos con las 4 medidas de referencia que sugieren el número de parameros a tomar.
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary$rss ,xlab=" Number of Variables",ylab=" RSS",type="l", xlim=c(0,20))
+a1<-which.min(reg.summary$rss)
+points (a1, reg.summary$rss[a1], col ="red",cex =2, pch =20)
+
+plot(reg.summary$adjr2 ,xlab =" Number of Variables",ylab=" Adjusted RSq"
+     ,type="l")
+a2<-which.max (reg.summary$adjr2)
+points (a2, reg.summary$adjr2[a2], col ="red",cex =2, pch =20)
+
+```
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary$cp ,xlab =" Number of Variables", ylab="Cp", type="l")
+a3<-which.min(reg.summary$cp)
+points (a3, reg.summary$cp [a3], col ="red",cex =2, pch =20)
+a4<-which.min(reg.summary$bic)
+plot(reg.summary$bic ,xlab=" Number of Variables",ylab=" BIC",type="l")
+points (a4, reg.summary$bic [a4], col =" red",cex =2, pch =20)
+```
+
+Se puede observar como, usando el método de "the best subset" se proponen las siguientes cantidades a tomar según los 4 estimadores estadísticos:
+
+- __RSS:__ propone 8 paramétros. 
+- __R2adj:__ propone 5 paramétros. 
+- __Cp:__ propone 4 paramétros. 
+- __bIC:__ propone 4 paramétros. 
+
+Ahora, se presentan también estos 4 graficos que nos ayudarán a dilucidar los paramétros que mejor ayudan a explicar la variable __y__
+
+```{r, fig.height= 3.8, fig.width= 7, echo=FALSE}
+plot(regfit.full, scale ="r2", main = "R2")
+plot(regfit.full, scale ="adjr2", main = "adjR2")
+plot(regfit.full, scale ="Cp", main = "Cp")
+plot(regfit.full, scale ="bic", main = "BIC")
+```
+
+Se observa como, usando estas 4 medidas y el método "the best subset", las variables que mejor ayudan a explicar la variable respuesta __y__ son __bcs__, __pindex__, __enzyme_test__ y __alc_heavy__.
+
+## Forward
+
+Primero se procede a seleccionar el "mejor" subconjunto para estos datos:
+
+```{r}
+regfit.fwd<-regsubsets(y~.,data=surgical,
+                       nvmax=NULL, method = "forward")
+reg.summary_fwd <-summary(regfit.fwd)
+with(summary(regfit.fwd), data.frame(rsq,adjr2, cp, rss, bic, outmat))
+```
+
+Luego, se presentan los gráficos con las 4 medidas de referencia que sugieren el número de parameros a tomar.
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_fwd$rss ,xlab=" Number of Variables",ylab=" RSS",type="l", xlim=c(0,20))
+b1<-which.min(reg.summary_fwd$rss)
+points (b1, reg.summary_fwd$rss[b1], col ="blue",cex =2, pch =20)
+plot(reg.summary_fwd$adjr2 ,xlab =" Number of Variables",ylab=" Adjusted RSq"
+     ,type="l")
+b2<-which.max (reg.summary_fwd$adjr2)
+points (b2, reg.summary_fwd$adjr2[b2], col ="blue",cex =2, pch =20)
+```
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_fwd$cp ,xlab =" Number of Variables", ylab="Cp", type="l")
+b3<-which.min(reg.summary_fwd$cp)
+points (b3, reg.summary_fwd$cp [b3], col ="blue",cex =2, pch =20)
+b4<-which.min(reg.summary_fwd$bic)
+plot(reg.summary_fwd$bic ,xlab=" Number of Variables",ylab=" BIC",type="l")
+points (b4, reg.summary_fwd$bic [b4], col =" blue",cex =2, pch =20)
+```
+
+Se puede observar como, usando el método de __forward__ se proponen las siguientes cantidades a tomar según los 4 estimadores estadísticos:
+
+- __RSS:__ propone 8 paramétros. 
+- __R2adj:__ propone 5 paramétros. 
+- __Cp:__ propone 5 paramétros. 
+- __bIC:__ propone 5 paramétros. 
+
+Ahora, se presentan también estos 4 graficos que nos ayudarán a dilucidar los paramétros que mejor ayudan a explicar la variable __y__
+
+```{r, fig.height= 3.8, fig.width= 7, echo=FALSE}
+plot(regfit.fwd, scale ="r2", main = "R2")
+plot(regfit.fwd, scale ="adjr2", main = "adjR2")
+plot(regfit.fwd, scale ="Cp", main = "Cp")
+plot(regfit.fwd, scale ="bic", main = "BIC")
+```
+
+Se observa como, usando estas 4 medidas y el método __forward__, las variables que mejor ayudan a explicar la variable respuesta __y__ son __bcs__, __pindex__, __enzyme_test__, __liver_test__ y __alc_heavy__.
+
+## Backward
+
+Primero se procede a seleccionar el "mejor" subconjunto para estos datos:
+
+```{r}
+regfit.bwd<-regsubsets(y~.,data=surgical,
+                       nvmax=19, method = "backward")
+reg.summary_bwd <- summary(regfit.bwd)
+#reg.summary_bwd
+with(summary(regfit.bwd), data.frame(rsq,adjr2, cp, rss, bic, outmat))
+```
+
+Luego, se presentan los gráficos con las 4 medidas de referencia que sugieren el número de parameros a tomar.
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_bwd$rss ,xlab=" Number of Variables",ylab=" RSS",type="l", xlim=c(0,20))
+c1<-which.min(reg.summary_bwd$rss)
+points (c1, reg.summary_bwd$rss[c1], col ="green",cex =2, pch =20)
+
+plot(reg.summary_bwd$adjr2 ,xlab =" Number of Variables",ylab=" Adjusted RSq"
+     ,type="l")
+c2<-which.max (reg.summary_bwd$adjr2)
+points (c2, reg.summary_bwd$adjr2[c2], col ="green",cex =2, pch =20)
+```
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_bwd$cp ,xlab =" Number of Variables", ylab="Cp", type="l")
+c3<-which.min(reg.summary_bwd$cp)
+points (c3, reg.summary_bwd$cp [c3], col ="green",cex =2, pch =20)
+c4<-which.min(reg.summary_bwd$bic)
+plot(reg.summary_bwd$bic ,xlab=" Number of Variables",ylab=" BIC",type="l")
+points (c4, reg.summary_bwd$bic [c4], col =" green",cex =2, pch =20)
+```
+
+Se puede observar como, usando el método de __backward__ se proponen las siguientes cantidades a tomar según los 4 estimadores estadísticos:
+
+- __RSS:__ propone 8 paramétros. 
+- __R2adj:__ propone 5 paramétros. 
+- __Cp:__ propone 4 paramétros. 
+- __bIC:__ propone 4 paramétros. 
+
+Ahora, se presentan también estos 4 graficos que nos ayudarán a dilucidar los paramétros que mejor ayudan a explicar la variable __y__
+
+```{r, fig.height= 3.8, fig.width= 7, echo=FALSE}
+plot(regfit.bwd, scale ="r2", main = "R2")
+plot(regfit.bwd, scale ="adjr2", main = "adjR2")
+plot(regfit.bwd, scale ="Cp", main = "Cp")
+plot(regfit.bwd, scale ="bic", main = "BIC")
+```
+
+Se observa como, usando estas 4 medidas y el método __backward__, las variables que mejor ayudan a explicar la variable respuesta __y__ son __bcs__, __pindex__, __enzyme_test__ y __alc_heavy__.
+
+## Stepwise
+
+Primero se procede a seleccionar el "mejor" subconjunto para estos datos:
+
+```{r}
+regfit.stepw<-regsubsets(y~., data= surgical, nvmax=NULL, method = "seqrep") 
+#nvmax: maximum size of subsets to examine
+
+reg.summary_stw<-summary(regfit.stepw)
+reg.summary_stw
+
+with(summary(regfit.stepw), data.frame(rsq,adjr2, cp, rss, bic, outmat))
+```
+
+Luego, se presentan los gráficos con las 4 medidas de referencia que sugieren el número de parameros a tomar.
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_stw$rss ,xlab=" Number of Variables",ylab=" RSS",type="l", xlim=c(0,20))
+d1<-which.min(reg.summary_stw$rss)
+points (d1, reg.summary_stw$rss[d1], col ="orange",cex =2, pch =20)
+
+plot(reg.summary_stw$adjr2 ,xlab =" Number of Variables",ylab=" Adjusted RSq"
+     ,type="l")
+d2<-which.max (reg.summary_stw$adjr2)
+points (d2, reg.summary_stw$adjr2[d2], col ="orange",cex =2, pch =20)
+```
+
+```{r, fig.height= 3.5, fig.width= 7, echo=FALSE}
+par(mfrow =c(1,2))
+plot(reg.summary_stw$cp ,xlab =" Number of Variables", ylab="Cp", type="l")
+d3<-which.min(reg.summary_stw$cp)
+points (d3, reg.summary_stw$cp [d3], col ="orange",cex =2, pch =20)
+d4<-which.min(reg.summary_stw$bic)
+plot(reg.summary_stw$bic ,xlab=" Number of Variables",ylab=" BIC",type="l")
+points (d4, reg.summary_stw$bic [d4], col =" orange",cex =2, pch =20)
+```
+
+Se puede observar como, usando el método de __stepwise__ se proponen las siguientes cantidades a tomar según los 4 estimadores estadísticos:
+
+- __RSS:__ propone 8 paramétros. 
+- __R2adj:__ propone 8 paramétros. 
+- __Cp:__ propone 8 paramétros. 
+- __bIC:__ propone 8 paramétros. 
+
+Ahora, se presentan también estos 4 graficos que nos ayudarán a dilucidar los paramétros que mejor ayudan a explicar la variable __y__.
+
+```{r, fig.height= 3.8, fig.width= 7, echo=FALSE}
+plot(regfit.stepw, scale ="r2", main = "R2")
+plot(regfit.stepw, scale ="adjr2", main = "adjR2")
+plot(regfit.stepw, scale ="Cp", main = "Cp")
+plot(regfit.stepw, scale ="bic", main = "BIC")
+```
+
+Se observa como, usando estas 4 medidas y el método __stepwise__, considera que todas las variables son buenas para explicar a la varaible __y__.
+
+## Validación cruzada (CV)
+
+Primero se procede a preparar los datos:
+
+```{r}
+# generando la muestra de entrenamiento
+set.seed (1)
+train<-sample (c(TRUE ,FALSE), nrow(surgical),rep=TRUE)
+test<-(!train )
+regfit.best<-regsubsets(y~.,data=surgical[train,],
+                        nvmax = NULL)
+
+# Creando una función para evaluar los modelos:
+predict.regsubsets =function (object,newdata,y){
+  form<-as.formula(object$call[[2]])
+  mat<-model.matrix(form ,newdata)
+  val.errors =rep(NA, (ncol(mat)-1))
+  for(i in 1:length(val.errors)){
+    coefi<-coef(object ,id=i)
+    xvars<-names (coefi)
+    pred<-mat[,xvars]%*%coefi
+    val.errors [i]= mean((y-pred)^2)
+  }
+  val.errors
+}
+```
+
+Luego se realizan las predicciones.
+
+```{r}
+e1<-predict.regsubsets(regfit.best,surgical[test,],
+                       surgical$y[test])
+
+b1<-which.min(e1)
+
+regfit.best<-regsubsets(y~.,data=surgical ,nvmax =NULL)
+
+e1
+b1
+coef(regfit.best,8)
+```
+
+```{r, fig.height= 3.8, fig.width= 7, echo=FALSE}
+plot(e1,type="b", col="purple", pch=20, cex=2)
+```
+
+Luego el gráfico nos muestra que, usando __CV__, un modelo que ayuda explicar de mejor manera la varaible respuesta __y__ es un que cuenta con 4 paramétros (sin contar el intercepto), y corresponde con las variables __bcs__, __pindex__, __enzyme_test__ y __alc_heavy__.
+
+
+
