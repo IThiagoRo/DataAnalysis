@@ -25,7 +25,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, erro = TRUE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
+knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
 #librerias
 library(tidyverse)
@@ -157,13 +157,13 @@ y_test=df[-train_ind,8]
 El clasificador Naive de Bayes asume que todas las features (componentes del vector x) son independientes y que son igualmente importantes. Con este supuesto, la probabilidad (Likelihood-verosilimitud) de observar el vector de features x = (x1, x2, . . . , xp) con p =1...16 dado que se esta en la clase j es:
 
 
-$Pr(x|Y=j)=Pr(x_1|Y=j)*...*Pr(x_p|Y=j)$
+$$Pr(x|Y=j)=Pr(x_1|Y=j)*...*Pr(x_p|Y=j)$$
 
 
 Por el teorema de bayes tenemos:
 
 
-$Pr(y=j|x)=\frac{Pr(x|Y=j)(Pr(Y=j))}{Pr(x)}$
+$$Pr(y=j|x)=\frac{Pr(x|Y=j)(Pr(Y=j))}{Pr(x)}$$
 
 
 lo anterior representa un modelo bayesiando donde, la distribucion posterior, esta representada por el producto de la verosimilitud y la probabilidad a priori.
@@ -220,8 +220,10 @@ pdays<-normalize(df$pdays)
 previous<-normalize(df$previous)
 
 #nueva base de datos, con las variables transformadas.
-Newdata<-cbind(df,dummyjob,dummyMarital,dummyEducation,dummydefault,dummyhousing,dummycontact,dummymonth,
-              dummypoutcome, dummydeposit,age,balance,day,duration,campaign,pdays,previous)
+Newdata<-cbind(df,dummyjob,dummyMarital,dummyEducation,
+               dummydefault,dummyhousing,dummycontact,dummymonth,
+              dummypoutcome,dummydeposit,age,balance,day,duration,
+              campaign,pdays,previous)
 
 #nueva selección de datos de entrenamiento y test
 train1 <- Newdata[ train_ind,18:50 ]
@@ -234,12 +236,14 @@ y_test1=df[-train_ind,8]
 #fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=1, prob=TRUE)
 
 #Modelo 2 k=2 modelo seleccionado
-fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, k=2, prob=TRUE,use.all=TRUE)
+fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, 
+                   k=2, prob=TRUE,use.all=TRUE)
 
 fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=2, prob=TRUE)
 
 #modelo 3 k= 5
-#fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, k=5, prob=TRUE,use.all=TRUE)
+#fit.knn_train<-knn(train=train1, test=train1,cl=y_train1, 
+#k=5, prob=TRUE,use.all=TRUE)
 #fit.knn_Test<-knn(train=train1, test=test1,cl=y_train1, k=5, prob=TRUE)
 
 #predict para verificar el ajuste de nuestros datos de Test.
@@ -255,13 +259,13 @@ prob_test <- attr(fit.knn_Test, "prob")
 
 ### Planteamiento del Modelo.
 
-$Logit(\pi_i)=\log(\frac{\pi_i}{1-\pi_i})= \beta_0 + \beta_{1xi1}+ \beta_{2xi2}+...+\beta_{kxik}$
+$$Logit(\pi_i)=\log(\frac{\pi_i}{1-\pi_i})= \beta_0 + \beta_{1xi1}+ \beta_{2xi2}+...+\beta_{kxik}$$
 
 El modelo logístico, es una variación del modelo de regresión lineal en el que la variable respuesta es una variable dicótoma, es decir solo toma 2 valores 0 ó 1, es por esto que el logit, o el logaritmo de la razón de dos se utiliza como su predictor lineal.
 este modelo es naturalmente un modelo de clasificación, por lo anterior, el resultado que se va obtener es la probabilidad asociada a si una persona con diversas características tiene o no un crédito. para mayor comprensión, el modelo ajustado entregara el resultado de evaluar la siguiente expresión:
 
 
-$\pi_i= \frac{e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}{1+e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}$
+$$\pi_i= \frac{e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}{1+e^{\beta_0+\beta_{1xi1}+\beta_{2xi2}+...+\beta_{kxik}}}$$
 
 Si el valor de la probabilidad es mayor a 0.5 entonces esta persona tiene un crédito(loan=si), en caso contrario, no tiene crédito(loan=no).
 
@@ -282,7 +286,7 @@ predict_lr_test<-ifelse(lrPred_test<=0.5,0,1)
 En LDA se modela la distribución de los predictores X de manera
 separada en cada una de las categorías de respuesta (es decir, condicionando en Y ) y luego se usa el teorema de Bayes para obtener estimaciones de $Pr (Y = k | X = x)$ Cuando estas distribuciones se asumen normales, el modelo es muy similar en forma al de regresión logística. esta probabilidad de clasificaci;on esta dada por:}
 
-$Pr (Y = k | X = x)=\frac{\pi_kf_k(x)}{\sum_{l=1}^{k}\pi_lf_l(x)}$
+$$Pr (Y = k | X = x)=\frac{\pi_kf_k(x)}{\sum_{l=1}^{k}\pi_lf_l(x)}$$
 
 ```{r, echo = TRUE}
 #modelo LDA
@@ -515,7 +519,7 @@ de datos para entrenamiento **train** de un valor del **75%** de los datos para 
 conjunto de datos para prueba **test** de un valor del **25%** de los datos para un total de **29 observaciones**. 
 Se define **income** como el supervisor **"Y"** y  la característica **debts** como predictor. 
 
-```{r db-ej2, message=FALSE}
+```{r db-ej2, echo=TRUE, message=FALSE}
 library(caret)
 data <- read.csv("Data/costumer_loan_details.csv",  
                  stringsAsFactors=TRUE, header = TRUE, sep = ",")
@@ -527,19 +531,22 @@ set.seed(123)
 smp_sz <- floor(0.75 * nrow(data))
 train_indx <- sample(seq_len(nrow(data)), size = smp_sz)
 
-train <- scale(data[train_indx, 10])
+train <- data[train_indx, 10]
+train_scale <- scale(data[train_indx, 10])
 test <- data[-train_indx,10]
 test_scale  <- scale(data[-train_indx,10])
 
 y_train <- data[train_indx, 9] 
-y_test <- data[-train_indx, 9]
+y_test <- data[-train_indx, 9] 
 
 ```
 
 \subsection{b)Con los datos de entrenamiento, implemente Knn(con al menos tres valores para k) usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
+Con la ayuda de la libreria **caret** se realiza una regresión knn con un parametro de k = 16. Mas adelante se explica por que se obta por usar ese k. 
+
 ```{r knn-ej2, echo=TRUE}
-knnmodel = knnreg(train, y_train, k = 16)
+knnmodel = knnreg(train_scale, y_train, k = 16)
 
 pred_y = predict(knnmodel, data.frame(test_scale))
 
@@ -547,8 +554,12 @@ mse = mean((y_test - pred_y)^2)
 mae = caret::MAE(y_test, pred_y)
 rmse = caret::RMSE(y_test, pred_y)
 
-cat("MSE: ", mse, "MAE: ", mae, " RMSE: ", rmse)
+#cat("MSE: ", mse, "MAE: ", mae, " RMSE: ", rmse)
 ```
+
+| MSE | MAE | RMSE |
+| --- | --- | ---- |
+|  4398259 | 1814.891 | 2097.203 | 
 
 
 ```{r}
@@ -581,7 +592,7 @@ ggplot(new_df, aes(test, y, color = Valor)) +
   ggtitle("Datos de prueba (Test)")+
   theme_bw()
 ```
-
+De la anteriores gráficas se puede observar que las prediciones dadas por nuestro modelo de regresión knn son relativamente buenas ya que el modelo trata de capturar la tendencia y no el ruido, si es comparado entre las predicciones que puede arrojar otros modelos de knn. 
 
 ```{r}
 n_iterations =  50
@@ -589,7 +600,7 @@ n_iterations =  50
 ans = c()
 
 for(i in 1:n_iterations){
-  knnmodel = knnreg(train, y_train, k = i)
+  knnmodel = knnreg(train_scale, y_train, k = i)
   pred_y = predict(knnmodel, data.frame(test_scale))
 
   mse = mean((y_test - pred_y)^2)
@@ -608,21 +619,42 @@ db %>%
 
 ```
 
-
+Nuestro modelo de regresión knn fue entrenado con 85 observaciones de un total de 114 y se toma **k = 16** por que es el modelo con menor **MSE = 4398259**, **MAE = 1814.891** , **RMSE = 2097.203** y cumple con ser el más parsimonioso entre los modelos de k = 17 hasta k = 50. 
 
 \subsection{c) Con los datos de entrenamiento, implemente regresión lineal simple usando income como el supervisor y debts como predictor. Grafique e interprete.}
 
-```{r, echo = TRUE}
+#### Correlación entre el supervisor (Income) y el predictor (debts). Datos de entrenamiento
+
+```{r}
 train_df <- cbind(train, y_train) %>% as.data.frame()
-colnames(train_df) <- c("feature", "y_train")
+colnames(train_df) <- c("debts", "income")
 
 
 corrplot(cor(train_df), method="numb", type="upper")
 ```
 
+Se observa una relación lineal **media-alta** entre el supervisor **income** y el predictor **debts**. 
+
+
+#### Modelo lineal
+
+ 
+ $$Y \approx \beta_0 + \beta_1X_i + \epsilon_i; \: \epsilon_i \sim N(0, \sigma^2)$$
+
+
 
 ```{r lm-ej2, echo = TRUE}
-model <- lm(y_train ~ feature, data=train_df)
+model <- lm(y_train ~ debts, data=train_df)
+```
+
+$$\hat{Y} \approx 4584.5801 + 1.7285X_i + \epsilon_i; \: \epsilon_i \sim N(0, \sigma^2)$$
+
+
+#### Anova 
+
+
+```{r, eval = FALSE}
+summary(model)
 ```
 
 
@@ -630,37 +662,117 @@ model <- lm(y_train ~ feature, data=train_df)
 kable(xtable(summary(model)))
 ```
 
+#### Pruebas de hipotesis: Significancia del modelo. 
+
+$$H_0: \beta_i = 0 \: vs \: H_i: \beta_i = 0$$
+Con una significancia de $\alpha = 0.05$ y observando los p-valores para $\beta_0$ y para $\beta_1$ hay evidencia suficiente para rechazar a $H_0$ esto quiere decir que el modelo es significativo. 
+
+
+#### Pruebas de hipotesis: Supuesto de normalidad.
+
+$$H_0:\ \varepsilon_i\sim\ \text{ Normal.  vs }\ H_1:\ \varepsilon_i\not\sim\text{ Normal}$$
+
 ```{r}
-train_df %>% ggplot(., aes(x=feature, y=y_train))+
+res <- residuals(model)
+shapiro <- shapiro.test(res)
+shapvalue <- ifelse(shapiro$p.value < 0.001, "P value < 0.001", 
+                    paste("P value = ", round(shapiro$p.value, 4), sep = ""))
+shapstat <- paste("W = ", round(shapiro$statistic, 4), sep = "")
+q <- qqnorm(res, plot.it = FALSE)
+qqnorm(res, main = "Normal Q-Q Plot of Residuals")
+qqline(res, lty = 2, col = 2)
+text(min(q$x, na.rm = TRUE), max(q$y, na.rm = TRUE)*0.95, pos = 4,
+     'Shapiro-Wilk Test', col = "blue", font = 2)
+text(min(q$x, na.rm = TRUE), max(q$y, na.rm = TRUE)*0.80, pos = 4,
+     shapstat, col = "blue", font = 3)
+text(min(q$x, na.rm = TRUE), max(q$y, na.rm = TRUE)*0.65, pos = 4,
+     shapvalue, col = "blue", font = 3)
+
+```
+
+Como el patrón de los residuales sigue en su mayoría la línea roja que representa el ajuste de la distribución de los residuales a una distribución normal, se concluye que el supuesto de normalidad se cumple. Lo cual se ratifica en el resultado de la prueba de normalidad de Shapiro-Wilk con un valor-P mayor a 0.05, por lo cual no se rechaza $H_0$ y se concluye que los residuales se distribuyen normal.
+
+
+#### Supuesto de varianza constante.
+
+Se realizó una prueba gráfica comparando los residuales con los valores ajustados para analizar su distribución.
+
+```{r, echo=FALSE, out.width="60%", fig.align='center'}
+# Cálculo de residuales estudentizados y valores ajustados
+res.stud <- round(residuals(model), 4)
+yhat <- model$fitted.values
+# Gráfico de Residuales estudentizados vs. Valores ajustados
+plot(yhat, res.stud, xlab = "Valores Ajustados", ylab = "Residuales", main = "Residuales vs. Valores ajustados")
+abline(h = 0, lty = 2, col = 2)
+```
+    
+De la gráfica se observa que el patrón formado por la nube de puntos no se aleja mucho de un patrón rectangular. Lo que nos da un indicio de homocedasticidad de varianza. 
+
+
+
+
+```{r}
+train_df %>% ggplot(., aes(x=debts, y=income))+
   geom_point()+
   geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE)+
   theme_classic()
   
 ```
 
+Del gráfico anterior y de las pruebas realizada nos permite concluir que una regresión lineal puede ser un modelo adecuado para poder explicar **income** dado que un cliente tiene una determinadad caracteristica **debts**. 
+
+
 \subsection{d) Use los respectivos ajuste de cada uno de los modelos anteriores y con el conjunto de prueba, calcule el test-MSE. Qué observa?}
+
+
+
+```{r, echo = TRUE, eval = FALSE}
+test_df <- cbind(test, y_test) %>% as.data.frame()
+colnames(test_df) <- c("debts", "income")
+
+#testMSE Regresion lineal
+preds <- predict(model, test_df)
+modelEval <- cbind(test_df$income, preds) %>% as.data.frame()
+mse_ml <- mean((modelEval$V1 - modelEval$preds)^2)
+mse_ml
+
+#testMSE Regresion KNN
+pred_y = predict(knnmodel, data.frame(test_scale))
+mse_knn = mean((y_test - pred_y)ˆ2)
+mse_knn
+```
+
+
+| testMSE Regresión Lineal | testMSE Regresión Knn |
+| ------------------------ | --------------------- |
+|     3224949              |     4398259           |
+
+
+Se observa que el modelo con menor **test MSE** es el de la regresión lineal. Dicho modelo a parte de hacer una mejor predicción también permite hacer inferencia, se recomienda dicho modelo como el modelo mas adecuado comparado respecto a los modelos obtenidos usando el método de aprendizaje estadístico KNN. 
 
 \subsection{e) Usando todos los datos y regresión lineal multiple seleccione un modelo usando forward, backward y stepwise}
 
-## Forward
+#### Forward
 
 ```{r, fig.width=70}
 ols_step_forward_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
-## Backward
+#### Backward
 
 ```{r, fig.width=80}
 ols_step_backward_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
-## Stepwise 
+#### Stepwise 
 
 ```{r, fig.width=70}
 ols_step_both_aic(lm(income ~., data=data[, 2:12,]))
 ```
 
 \subsection{f) Seleccione uno de los modelos del paso anterior y responda con argumentación la pregunta: Ajusta bien dicho modelo?}
+
+Dado que los métodos de selección automáticos como: Forward y Stepwise nos indican que dos modelo plausibles para explicar **income** son el modelo con la covariable **marital_status** y el modelo con la covariable **debts** obtamos por seleccionar el modelo con la covariable **debts** ya que cuenta con una de las mejores metricas(AIC, R-sq, Adj.R-sq) dadas por el metodo de selección automático de variables y como vimos anteriormente es un modelo que cumple con los supuesto de un modelo lineal ademas de tener una mejor predicción que los modelos de regresión Knn visto en este trabajo. Lo que nos permite concluir que dicho modelo es adecuado y tiene un buen ajuste. 
 
 
 \section{Ejercicio3}
