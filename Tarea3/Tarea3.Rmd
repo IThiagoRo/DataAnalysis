@@ -1,0 +1,55 @@
+---
+header-includes:
+- \usepackage{longtable}
+- \usepackage[utf8]{inputenc}
+- \usepackage[spanish]{babel}\decimalpoint
+- \setlength{\parindent}{1.25cm}
+- \usepackage{amsmath}
+- \usepackage{xcolor}
+- \usepackage{cancel}
+- \usepackage{array}
+- \usepackage{float}
+- \usepackage{multirow}
+output:
+  pdf_document:
+    number_sections: yes
+  html_document:
+    df_print: paged
+fontsize: 12pt
+papersize: letter
+geometry: margin = 1in
+language: es
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
+
+library(ISLR2)
+```
+
+
+```{=tex}
+\input{DocumentFormat/titlepage.tex}
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+\thispagestyle{empty}
+\listoffigures
+\newpage
+```
+
+```{=tex}
+\pagestyle{myheadings}
+\setcounter{page}{4}
+```
+
+\section{Ejercicio1}
+<!-- Daniel Hoyos -->
+
+
+\section{Ejercicio2}
+<!-- Santiago Rojas -->
+
