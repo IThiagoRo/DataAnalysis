@@ -31,6 +31,11 @@ library(ISLR2)
 library(tree)
 library (MASS)
 library(kableExtra)
+library(ggplot2)
+library(gridExtra)
+library(boot)
+library(data.table)
+library(splines)
 ```
 
 
@@ -49,19 +54,264 @@ library(kableExtra)
 \setcounter{page}{4}
 ```
 
+
+
 \section{Ejercicio1}
+
 <!-- Daniel Hoyos -->
+```{r, echo=TRUE}
+attach(Boston)
+```
+
+```{r, echo=TRUE}
+fit1 <- lm(nox ~ poly(dis,4), data = Boston)
+coef(summary(fit1))
+```
+Al ajustar la regresión correspondiente, se pudo determinar que es suficiente considerar un polinomio de grado 3. Mientras que con un polinomio de grado 4, se comienzan a presentar problemas de sobreparametrización y, por lo tanto, algunos de los parámetros dejan de ser significativos para el modelo.
+
+```{r, echo=TRUE}
+fit <- lm(nox ~ poly(dis,3), data = Boston)
+(summary(fit))
+```
+Todas las variables en este modelo de regresión cúbica parecen tener valores p que son estadísticamente significativos. El error estándar residual es bajo pero los grados de libertad son altos. Los valores de R-Squared son relativamente altos en 0.71 para explicar la varianza en el modelo.
+
+
+
+```{r, echo=TRUE}
+dislims <- range(dis)
+dis.grid <- seq(from = dislims[1], to = dislims [2])
+preds <- predict(fit , newdata = list(dis = dis.grid),se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit ,preds$fit - 2 * preds$se.fit)
+```
+
+```{r, echo=TRUE}
+par(mfrow = c(1, 1), mar = c(4.5 , 4.5, 1, 1),
+oma = c(0, 0, 4, 0))
+plot(dis , nox , xlim = dislims , cex = .5, col = "darkgrey")
+title("Degree 3 Polynomial", outer = T)
+lines(dis.grid, preds$fit , lwd = 2, col = "blue")
+matlines(dis.grid , se.bands, lwd = 1, col = "blue", lty = 3)
+
+```
+
+Graficamente, observamos un ajuste bastante bueno al considerar un polinomio de grado 3.
+
+
+**b) Grafique los ajustes polinómicos para un rango de polinomios de diferentes grados (digamos, de 1 a 10), y reporte la suma de cuadrados de los residuales asociada.**
+
+Se ajustarán modelos que van desde uno lineal hasta un polinomio de grado 5, para determinar el modelo más simple que sea suficiente para explicar la relación entre nox y dis.
+
+
+```{r, echo=TRUE}
+fit.1 <- lm(nox ~ dis , data = Boston)
+fit.2 <- lm(nox ~ poly(dis , 2), data = Boston)
+fit.3 <- lm(nox ~ poly(dis , 3), data = Boston)
+fit.4 <- lm(nox ~ poly(dis , 4), data = Boston)
+fit.5 <- lm(nox ~ poly(dis , 5), data = Boston)
+anova(fit.1, fit.2, fit.3, fit.4, fit.5)
+coef(summary(fit.5))
+```
+
+Parece ser más apropiado utilizar el modelo cúbico donde El p-valor que compara el polinomio de grado 4, Model3 y Model4, es aproximadamente 59% mientras que el polinomio de grado 5 Model5 parece innecesario por qué su p-valor es 0.03. Por lo tanto, un modelo cuadrático parece proporcionar un ajuste razonable a los datos en comparación a modelos de grados inferiores y superiores. 
+
+
+**c) Realice una validación cruzada o alg´un otro enfoque para seleccionar el óptimo grado para el polinomio y explique sus resultados.**
+
+
+**K-fold Cross-Validation**
+
+
+```{r, echo=TRUE}
+#library(boot)
+#library(ggplot2)
+cv_MSE_k10 <- rep(NA,10)
+
+for (i in 1:10) {
+  modelo <- glm(nox ~ poly(dis, i), data = Boston)
+  set.seed(17)
+  cv_MSE_k10[i] <- cv.glm(data = Boston, glmfit = modelo, K = 10)$delta[1]
+}
+ggplot(data = data.frame(polinomio = 1:10, cv_MSE = cv_MSE_k10),
+       aes(x = polinomio, y = cv_MSE)) +
+geom_point(colour = c("firebrick3")) +
+geom_path() +
+scale_x_continuous(breaks = c(0:10)) +
+theme_bw() + 
+labs(title  =  'Test Error ~ Grado del polinomio') +
+theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+```
+
+Tras el proceso de validación cruzada, se determina que el mejor grado del polinomio es efectivamente el de grado 3, dado que es donde se presenta un menor MSE. 
+
+**d) Use la función bs() para ajustar una spline de regresión para predecir nox usando dis. Reporte la salida para el ajuste usando cuatro grados de libertad. ¿Cómo ubicó los nodos?. Grafique el ajuste resultante.**
+
+
+```{r, echo=TRUE}
+#library(splines)
+fit <- lm(nox ~ bs(dis , knots = c(3.2)), data = Boston)
+pred <- predict(fit , newdata = list(dis = dis.grid), se = T)
+plot(dis , nox , col = "gray")
+lines(dis.grid, pred$fit , lwd = 2)
+lines(dis.grid , pred$fit + 2 * pred$se, lty = "dashed")
+lines(dis.grid , pred$fit - 2 * pred$se, lty = "dashed")
+
+```
+
+```{r, echo=TRUE}
+#library(ggplot2)
+
+attr(bs(dis , df = 4), "knots")
+
+```
+Para ajustar una spline de regresión con 4 grados de libertad, se utilizó la función attr la cual nos permite determinar la posición de los nodos según los grados de libertad, en este caso, como acabamos de observar, para 4 grados de libertad, solo permite un nodo que representa la mediana en 3.2.
+
+
+**e) Ahora ajuste una spline de regresión para un rango de grados de libertad, y grafique los ajustes resultantes e informe el RSS resultante. Describa los resultados obtenidos.**
+
+
+```{r, echo=TRUE}
+plot.new()
+plot(dis , nox , xlim = dislims , cex = .5, col = "darkgrey")
+title("Spline regression")
+# 4grados de libertad
+fit.1 <- lm(nox ~ bs(dis , knots = c(3.2)), data = Boston)
+# 6grados de libertad
+attr(bs(dis , df = 6), "knots")
+fit.2 <- lm(nox ~ bs(dis , knots = c(2.1,3.2,5.18)), data = Boston)
+# 7grados de libertad
+attr(bs(dis , df = 7), "knots")
+fit.3 <- lm(nox ~ bs(dis , knots = c(1.95,2.6,3.87,5.61)), data = Boston,cv=T)
+#spline suave, con grados de libertad obtenidos a partir de cv
+fit.4 <- smooth.spline(dis , nox , cv = TRUE)
+
+pred1 <- predict(fit.1 , newdata = list(dis = dis.grid), se = T)
+pred2 <- predict(fit.2, newdata = list(dis = dis.grid), se = T)
+pred3<- predict(fit.3, newdata = list(dis = dis.grid), se = T)
+
+lines(dis.grid, pred1$fit ,col='red', lwd = 2)
+lines(dis.grid, pred2$fit ,col='blue', lwd = 2)
+lines(dis.grid, pred3$fit ,col='green', lwd = 2)
+lines(fit.4 , col = "yellow", lwd = 2)
+
+legend("topright", legend = c("4 DF", "6 DF",'8 DF','15.4 DF'),col = c("red", "blue",'green','yellow'), lty = 1, lwd = 2, cex = .8)
+
+```
+
+
+Se observan splines de regresión con 4, 6, 7 y un spline suave con 15.4 gl, claramente el mejor ajuste se observa para un spline cúbico con 4 grados de libertad, a medida que se aumentan los grados de libertad, la tendencia del ajuste se deja llevar por el ruido y esto genera problemas de predicción.
+
+
+**Analisis de RSS**
+
+
+```{r, echo=TRUE}
+
+rss <- rep(NA, 10)
+for (i in 1:10) {
+  poly.fit <- lm(nox ~ poly(dis, i), data=Boston)
+  rss[i] <- sum(poly.fit$residuals^2)
+}
+
+plot(1:10, rss, xlab='Degree of Polynomial', ylab='Residual Sum of Squares', type='b', main='Degree of Polynomial vs RSS')
+axis(1, at = seq(1,10, by=1))
+
+
+
+```
+
+```{r, echo=TRUE}
+#library(data.table)
+rss <- data.table(seq(1:10), rss, keep.rownames = TRUE)
+ggplot(rss, aes(V1, rss)) + 
+  geom_line() + 
+  scale_x_continuous(breaks=c(1:10)) +
+  labs(x='Degree of Polynomial', y='Residual Sum of Squares', title='Degree of Polynomial vs RSS')
+
+```
+
+
+```{r, echo=TRUE}
+rss[c(2,3),]
+
+```
+
+el menor Rss se obtiene con 10 grados de libertad.
+
+
+**f) Realice una validación cruzada o algún otro enfoque para seleccionar los mejores grados de libertad para una spline de regresión sobre estos datos. Describa sus resultados.**
+
+
+
+```{r, echo=TRUE}
+#library(boot)
+#library(data.table)
+#library(ggplot2)
+cv.spline.fun <- function(i) {
+  fit <- glm(nox ~ bs(dis, df=i), data=Boston)
+  cv.error <- cv.glm(Boston, fit, K=10)$delta[2]
+}
+
+cv.err <- sapply(1:20, cv.spline.fun)
+
+df <- seq(1:20)
+
+dt <- data.table(df, cv.err)
+
+plot.new()
+ggplot(dt, aes(df, cv.err)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks=seq(1:20)) +
+  labs(x='Degrees of Freedom', y='CV MSE', title='Spline - CV MSE vs Degrees of Freedom')
+```
+
+
+```{r, echo=TRUE}
+#library(gridExtra)
+
+p1 <- ggplot(Boston, aes(x=dis, y=nox)) +
+    geom_point(colour='black') +
+    stat_smooth(method='lm', formula= y ~ bs(x,df=3)) +
+  labs(x='dis',y='nox', title='Degrees of Freedom 3')
+
+p2 <- ggplot(Boston, aes(x=dis, y=nox)) +
+    geom_point(colour='black') +
+    stat_smooth(method='lm', formula= y ~ bs(x,df=5)) +
+  labs(x='dis',y='nox', title='Degrees of Freedom 5')
+
+
+p3 <- ggplot(Boston, aes(x=dis, y=nox)) +
+    geom_point(colour='black') +
+    stat_smooth(method='lm', formula= y ~ bs(x,df=10)) +
+  labs(x='dis',y='nox', title='Degrees of Freedom 10')
+
+
+p4 <- ggplot(Boston, aes(x=dis, y=nox)) +
+    geom_point(colour='black') +
+    stat_smooth(method='lm', formula= y ~ bs(x,df=13)) +
+  labs(x='dis',y='nox', title='Degrees of Freedom 13')
+
+
+grid.arrange(p1,p2,p3,p4, ncol=2, nrow=2)
+```
+
+
+Se observa que el ajuste puede darse entre 5 y 10 grados de libertad, aunque según el RSS el que mejor ajuste tiene es el de 10 grados de libertad. 
+
+```{r}
+rm(list = ls())
+```
 
 
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
-```{r db}
+```{r,}
 attach(Carseats)
 db <- Carseats
 ```
 
 \subsection{a)}
-```{r}
+```{r,}
 set.seed(123)
 
 smp_sz <- floor(0.75 * nrow(db))
@@ -72,7 +322,7 @@ test <- db[-train_idx,]
 ```
 
 \subsection{b)}
-```{r}
+```{r,}
 tree.sales = tree(Sales~ ., data = train)
 summary(tree.sales)
 ```
