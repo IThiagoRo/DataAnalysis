@@ -305,12 +305,23 @@ rm(list = ls())
 
 \section{Ejercicio2}
 <!-- Santiago Rojas -->
+
+2. En este ejercicio se utilizarán arboles de regresión para predecir los valores de
+la variable sales en la base de datos Carseats de la libreria ISLR2, tratando
+dicha variable como continua:
+
+
 ```{r,}
 attach(Carseats)
 db <- Carseats
 ```
 
 \subsection{a)}
+
+a) Divida el conjunto de observaciones en un conjunto de entrenamiento y un
+conjunto de prueba. De forma aleatoria. En que proporciones dividió los
+datos?.
+
 ```{r,}
 set.seed(123)
 
@@ -322,9 +333,71 @@ test <- db[-train_idx,]
 ```
 
 \subsection{b)}
+
+b) Ajuste un árbol de regressión en el conjunto de entrenamiento. Gráfique el
+árbol e interprete los resultados. Que valor del MSE de prueba obtiene?.
+
 ```{r,}
 tree.sales = tree(Sales~ ., data = train)
 summary(tree.sales)
 ```
+```{r,fig.height=8, fig.width=15}
+plot(tree.sales)
+text(tree.sales, pretty =0.01)
+```
+```{r}
+tree.sales.pred<-predict(tree.sales, test)
+mse = mean((test$Sales - tree.sales.pred)^2)
+mse
+```
+
+
+c) Utilice validación cruzada para determinar el grado óptimo de complijidad
+del árbol. Consigue la poda del árbol mejorar el EMS de prueba?
+
+```{r}
+set.seed(123)
+cv.sales = cv.tree(tree.sales)
+plot(cv.sales$size, cv.sales$dev, type='b')
+abline(v=8, col="red", lwd=3, lty=2)
+```
+
+```{r, fig.height=8, fig.width=15}
+prune.sales = prune.tree(tree.sales, best=8)
+plot(prune.sales)
+text(prune.sales, pretty=0)
+```
+
+
+```{r}
+prune.sales.pred<-predict(prune.sales, test)
+mse = mean((test$Sales - prune.sales.pred)^2)
+mse
+```
+
+
+d ) Utilice el método bagging para analizar estos datos. Que valor del MSE
+obtiene?
+Use la función importance() para determinar cúal de las variables es
+la más importante.
+
+
+```{r}
+library(randomForest)
+set.seed(123)
+bag.sales <- randomForest(Sales~., data=train, )
+```
+
+
+
+
+e) Ahora utilice un bosque aleatorio (Random-Forest) para analizar estos
+datos.
+Que valor del MSE de prueba obtiene?.
+Use la función importance() para determinar cuales variables son las
+más importantes.
+Describa el efecto de m el número de variables consideradas en cada
+subdivisión, en la tasa de error obtenida.
+
 
 
