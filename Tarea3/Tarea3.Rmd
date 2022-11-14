@@ -28,14 +28,16 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
 library(ISLR2)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(gridExtra)
+library(data.table)
+library(boot)
+library(splines)
+library(randomForest)
 library(tree)
 library (MASS)
-library(kableExtra)
-library(ggplot2)
-library(gridExtra)
-library(boot)
-library(data.table)
-library(splines)
 ```
 
 
@@ -45,8 +47,6 @@ library(splines)
 \tableofcontents
 \newpage
 \thispagestyle{empty}
-\listoffigures
-\newpage
 ```
 
 ```{=tex}
@@ -58,7 +58,11 @@ library(splines)
 
 \section{Ejercicio1}
 
-<!-- Daniel Hoyos -->
+\subsection{a) Use la función poly() para ajustar una regresión polinomial cúbica y
+con esta predecir la variable nox usando dis. Reporte el resultado de la
+regresión, luego grafique los datos resultantes y los ajustes polinómicos.}
+
+
 ```{r, echo=TRUE}
 attach(Boston)
 ```
@@ -97,12 +101,12 @@ matlines(dis.grid , se.bands, lwd = 1, col = "blue", lty = 3)
 Graficamente, observamos un ajuste bastante bueno al considerar un polinomio de grado 3.
 
 
-**b) Grafique los ajustes polinómicos para un rango de polinomios de diferentes grados (digamos, de 1 a 10), y reporte la suma de cuadrados de los residuales asociada.**
+\subsection{b) Grafique los ajustes polinómicos para un rango de polinomios de diferentes grados (digamos, de 1 a 10), y reporte la suma de cuadrados de los residuales asociada.}
 
 Se ajustarán modelos que van desde uno lineal hasta un polinomio de grado 5, para determinar el modelo más simple que sea suficiente para explicar la relación entre nox y dis.
 
 
-```{r, echo=TRUE}
+```{r}
 fit.1 <- lm(nox ~ dis , data = Boston)
 fit.2 <- lm(nox ~ poly(dis , 2), data = Boston)
 fit.3 <- lm(nox ~ poly(dis , 3), data = Boston)
@@ -110,15 +114,41 @@ fit.4 <- lm(nox ~ poly(dis , 4), data = Boston)
 fit.5 <- lm(nox ~ poly(dis , 5), data = Boston)
 anova(fit.1, fit.2, fit.3, fit.4, fit.5)
 coef(summary(fit.5))
+
+rss <- rep(NA, 10)
+for (i in 1:10) {
+  poly.fit <- lm(nox ~ poly(dis, i), data=Boston)
+  rss[i] <- sum(poly.fit$residuals^2)
+}
 ```
 
 Parece ser más apropiado utilizar el modelo cúbico donde El p-valor que compara el polinomio de grado 4, Model3 y Model4, es aproximadamente 59% mientras que el polinomio de grado 5 Model5 parece innecesario por qué su p-valor es 0.03. Por lo tanto, un modelo cuadrático parece proporcionar un ajuste razonable a los datos en comparación a modelos de grados inferiores y superiores. 
 
 
-**c) Realice una validación cruzada o alg´un otro enfoque para seleccionar el óptimo grado para el polinomio y explique sus resultados.**
+
+```{r, echo=TRUE}
+#library(data.table)
+rss <- data.table(seq(1:10), rss, keep.rownames = TRUE)
+ggplot(rss, aes(V1, rss)) + 
+  geom_line() + 
+  scale_x_continuous(breaks=c(1:10)) +
+  labs(x='Degree of Polynomial', y='Residual Sum of Squares', title='Degree of Polynomial vs RSS')
+
+```
 
 
-**K-fold Cross-Validation**
+```{r, echo=TRUE}
+rss[c(2,3),]
+
+```
+
+el menor Rss se obtiene con 10 grados de libertad.
+
+
+\subsection{c) Realice una validación cruzada o algún otro enfoque para seleccionar el óptimo grado para el polinomio y explique sus resultados.}
+
+
+### K-fold Cross-Validation
 
 
 ```{r, echo=TRUE}
@@ -143,7 +173,7 @@ theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
 
 Tras el proceso de validación cruzada, se determina que el mejor grado del polinomio es efectivamente el de grado 3, dado que es donde se presenta un menor MSE. 
 
-**d) Use la función bs() para ajustar una spline de regresión para predecir nox usando dis. Reporte la salida para el ajuste usando cuatro grados de libertad. ¿Cómo ubicó los nodos?. Grafique el ajuste resultante.**
+\subsection{d) Use la función bs() para ajustar una spline de regresión para predecir nox usando dis. Reporte la salida para el ajuste usando cuatro grados de libertad. ¿Cómo ubicó los nodos?. Grafique el ajuste resultante.}
 
 
 ```{r, echo=TRUE}
@@ -166,7 +196,7 @@ attr(bs(dis , df = 4), "knots")
 Para ajustar una spline de regresión con 4 grados de libertad, se utilizó la función attr la cual nos permite determinar la posición de los nodos según los grados de libertad, en este caso, como acabamos de observar, para 4 grados de libertad, solo permite un nodo que representa la mediana en 3.2.
 
 
-**e) Ahora ajuste una spline de regresión para un rango de grados de libertad, y grafique los ajustes resultantes e informe el RSS resultante. Describa los resultados obtenidos.**
+\subsection{e) Ahora ajuste una spline de regresión para un rango de grados de libertad, y grafique los ajustes resultantes e informe el RSS resultante. Describa los resultados obtenidos.}
 
 
 ```{r, echo=TRUE}
@@ -201,7 +231,7 @@ legend("topright", legend = c("4 DF", "6 DF",'8 DF','15.4 DF'),col = c("red", "b
 Se observan splines de regresión con 4, 6, 7 y un spline suave con 15.4 gl, claramente el mejor ajuste se observa para un spline cúbico con 4 grados de libertad, a medida que se aumentan los grados de libertad, la tendencia del ajuste se deja llevar por el ruido y esto genera problemas de predicción.
 
 
-**Analisis de RSS**
+### Analisis de RSS
 
 
 ```{r, echo=TRUE}
@@ -219,26 +249,9 @@ axis(1, at = seq(1,10, by=1))
 
 ```
 
-```{r, echo=TRUE}
-#library(data.table)
-rss <- data.table(seq(1:10), rss, keep.rownames = TRUE)
-ggplot(rss, aes(V1, rss)) + 
-  geom_line() + 
-  scale_x_continuous(breaks=c(1:10)) +
-  labs(x='Degree of Polynomial', y='Residual Sum of Squares', title='Degree of Polynomial vs RSS')
-
-```
 
 
-```{r, echo=TRUE}
-rss[c(2,3),]
-
-```
-
-el menor Rss se obtiene con 10 grados de libertad.
-
-
-**f) Realice una validación cruzada o algún otro enfoque para seleccionar los mejores grados de libertad para una spline de regresión sobre estos datos. Describa sus resultados.**
+\subsection{f) Realice una validación cruzada o algún otro enfoque para seleccionar los mejores grados de libertad para una spline de regresión sobre estos datos. Describa sus resultados.}
 
 
 
@@ -257,7 +270,7 @@ df <- seq(1:20)
 
 dt <- data.table(df, cv.err)
 
-plot.new()
+#plot.new()
 ggplot(dt, aes(df, cv.err)) +
   geom_point() +
   geom_line() +
@@ -304,100 +317,259 @@ rm(list = ls())
 
 
 \section{Ejercicio2}
-<!-- Santiago Rojas -->
 
-2. En este ejercicio se utilizarán arboles de regresión para predecir los valores de
-la variable sales en la base de datos Carseats de la libreria ISLR2, tratando
+En este ejercicio se utilizarán arboles de regresión para predecir los valores de
+la variable __sales__ en la base de datos __Carseats__ de la libreria __ISLR2__, tratando
 dicha variable como continua:
 
+Primeramente, se cargan los datos y se examinan sus caracteristicas:
 
-```{r,}
-attach(Carseats)
-db <- Carseats
+```{r, echo = TRUE}
+head(Carseats)
+str(Carseats)
 ```
 
-\subsection{a)}
+La base __Carseats__ constituye un conjunto de datos simulados que contiene las ventas de sillas de coche para niños en 400 tiendas diferentes.
 
-a) Divida el conjunto de observaciones en un conjunto de entrenamiento y un
-conjunto de prueba. De forma aleatoria. En que proporciones dividió los
-datos?.
+Dicha base contiene las siguientes 11 variables:
 
-```{r,}
+- __Sales:__ Ventas unitarias (en miles) en cada ubicación.
+
+- __CompPrice:__ Precio cobrado por el competidor en cada ubicación.
+
+- __Income:__ Nivel de ingresos de la comunidad (en miles de dólares).
+
+- __Advertising:__ Presupuesto de publicidad local para la empresa en cada ubicación (en miles de dólares).
+
+- __Population:__ Tamaño de la población en la región (en miles).
+
+- __Price:__ Precio de los cargos de la compañía por los asientos de seguridad en cada sitio.
+
+- __ShelveLoc:__ Un factor con niveles en el que __Bad__ indica la calidad de la ubicación de las estanterías para los asientos de automóvil en cada __sitioGoodMedium__.
+
+- __Age:__ Edad media de la población local.
+
+- __Education:__ Nivel de educación en cada lugar.
+
+- __Urban:__ Un factor con niveles __No__ y __Yes__ para indicar si la tienda está en una zona urbana o rural.
+
+- __US:__ Un factor con niveles __No__ y __Yes__ para indicar si la tienda está en USA o no.
+
+
+\subsection{a)Conjunto de entrenamiento y prueba}
+
+Se procede a dividir el conjunto de observaciones en un conjunto de entrenamiento y un
+conjunto de prueba. De la siguiente manera:
+
+```{r, echo=TRUE, warning=FALSE,message=FALSE}
+# cargo de libreria para arboles de regresión
+library(tree)
+```
+
+De forma aleatoria se realiza un _sample_ del conjunto de datos para posteriormente crear los conjuntos de prueba y de entrenamiento:
+
+```{r, echo=TRUE}
+set.seed (123)
+train = sample(1: nrow(Carseats), nrow(Carseats)*0.7)
+```
+### Conjunto de entrenamiento
+
+```{r, echo=TRUE}
+# datos de entrenamiento para la base Carseats
+train_car = Carseats[train, ]
+dim(train_car) # dimensiones de los datos de entrenamiento
+head(train_car) # encabezado de los datos de entrenamiento
+```
+
+### Conjunto de prueba
+
+```{r, echo=TRUE}
+# datos de prueba para la base Carseats
+test_car = Carseats[-train, ]
+dim(test_car) # dimensiones de los datos de prueba
+head(test_car) # encabezado de los datos de prueba
+```
+
+Los datos de entrenamiento y prueba se dividieron en proporciones de 0.7 y 0.3 con respecto a la base __Carseats__. Es decir, el 70% de dicha base corresponden con datos de entrenamiento (280 registros) y el 30% con los datos de prueba (120 registros).
+
+\subsection{b)Arbol de regresión}
+
+Ahora se ajusta un árbol de regressión en el conjunto de entrenamiento. 
+
+```{r, echo=TRUE}
+# ajuste del arbol de regresión
+tree_carseats <-  tree(Sales~.,Carseats,subset = train)
+
+# resumen del modelo
+summary(tree_carseats)
+```
+
+Se observa como el modelo de regresión seleccionó 5 variables las cuales son: __"ShelveLoc"__, __"Price"__,  __"CompPrice"__, __"Age"__  y __"Advertising"__. Además, dicho árbol estableció 19 nodos terminales.
+
+Luego, se Gráfica dicho árbol y se interpretan los resultados.
+
+```{r, echo=TRUE, fig.height=8, fig.width=10}
+plot(tree_carseats, col = '#1E90FF')
+text(tree_carseats, pretty = 0, cex = 0.5)
+title('Árbol de Regresión', cex = 2)
+```
+
+### Interpretación
+
+Se observa del árbol de regresión como en su nivel más alto, separa por el factor  __ShelveLoc__, en los niveles __bad__ y __medium__. En su segundo nivel más alto separa por la variable __Price__ esto índica que los precios de los cargos de la compañía por los asientos de seguridad en cada sitio. En este caso, cuando __ShelveLoc__ está en un nivel __bad__ son menores a 105.5. Mientras que, cuando __ShelveLoc__ está en un nivel __medium__ son menores a 109.5. También se observa como los precios varían según la edad y el precio cobrado por cada competidor en cada ubicación.
+
+También se observa como, el indicador más importante de __Sales__ parece ser un “nivel de calidad de ubicación” ( __ShelveLoc__ ) debido a que la primera rama separa la categoría __Good__ de las categorías __Bad__ y __Medium__. Cuando el precio de la silla de bebé para carro ( __Price__ ), tiende a ser más alto, las ventas son en promedio menores.
+
+Por otro lado, cuando la calidad de ubicación es buena ( __ShelveLoc__ ), las ventas son en promedio más altas que cuando la calidad de ubicación es mala. No obstante, cuando la inversión de publicidad es más alta ( __Advertising__ ), las ventas son mayores.
+
+__¿Qué valor para el MSE de prueba se obtiene?__
+
+Para dar respuesta a esta pregunta se realiza lo siguiente:
+
+```{r, echo=TRUE}
+yhat <- predict(tree_carseats, newdata = test_car)
+mean((yhat - test_car$Sales)^2)
+```
+
+Se obtiene un error de prueba de 3.602818; la raiz cuadrada de dicho valor es 1.898109; indicando que en este modelo las ventas están alrededor de $1.898109 del verdadero valor.
+
+\subsection{c) Validadación cruzada y poda del arbol de regresión}
+
+Se utiliza la validación cruzada usando la función __cv.tree()__ para ver si una poda del árbol mejora su desempeño y a fin de determinar el grado  óptimo de complejidad del árbol.
+
+```{r, echo=TRUE}
+# validación cruzada con el árbol de regresión de entrenamiento
 set.seed(123)
-
-smp_sz <- floor(0.75 * nrow(db))
-train_idx <- sample(seq_len(nrow(db)), size=smp_sz)
-
-train <- db[train_idx,]
-test <- db[-train_idx,]
-```
-
-\subsection{b)}
-
-b) Ajuste un árbol de regressión en el conjunto de entrenamiento. Gráfique el
-árbol e interprete los resultados. Que valor del MSE de prueba obtiene?.
-
-```{r,}
-tree.sales = tree(Sales~ ., data = train)
-summary(tree.sales)
-```
-```{r,fig.height=8, fig.width=15}
-plot(tree.sales)
-text(tree.sales, pretty =0.01)
-```
-```{r}
-tree.sales.pred<-predict(tree.sales, test)
-mse = mean((test$Sales - tree.sales.pred)^2)
-mse
-```
-
-
-c) Utilice validación cruzada para determinar el grado óptimo de complijidad
-del árbol. Consigue la poda del árbol mejorar el EMS de prueba?
-
-```{r}
-set.seed(123)
-cv.sales = cv.tree(tree.sales)
-plot(cv.sales$size, cv.sales$dev, type='b')
+cv_carseats =cv.tree(tree_carseats)
+plot(cv_carseats$size ,cv_carseats$dev,type='b', col = "#1E90FF",
+      ylab = 'Error de validación cruzada', xlab = 'Nodos terminales', 
+     main = 'Error de validación vs Nodos')
 abline(v=8, col="red", lwd=3, lty=2)
 ```
 
-```{r, fig.height=8, fig.width=15}
-prune.sales = prune.tree(tree.sales, best=8)
-plot(prune.sales)
-text(prune.sales, pretty=0)
+Según lo evidencia el gráfico, el grado óptimo de complejidad del árbol, es aquel que cuenta con 8 nodos.
+
+Ahora bien si se quiere podar el árbol, se utiliza la función __prune.tree()__.
+
+```{r, echo=TRUE, fig.height=8, fig.width=10}
+# Se poda el arbol de regresión
+prune_carseats = prune.tree(tree_carseats ,best = 8)
+plot(prune_carseats, col = "#CD1076")
+text(prune_carseats ,pretty =0, cex = 0.7)
+title('Árbol de Regresión', cex = 2)
 ```
 
+### Interpretación
 
-```{r}
-prune.sales.pred<-predict(prune.sales, test)
-mse = mean((test$Sales - prune.sales.pred)^2)
-mse
+De este arbol de regresion se observa como, cuando los ingresos de la comunidad ( __income__ ) son menores, las ventas son menores. El indicador más importante de __Sales__ parece ser un “nivel de calidad de ubicación” ( __ShelveLoc__ ) debido a que la primera rama separa la categoría __Good__ de las categorías __Bad__ y __Medium__.
+
+Además, cuando el precio de la silla de bebé para carro (__Price__), tiende a ser más alto, las ventas son en promedio menores. Cuando la calidad de ubicación es bueno ( __ShelveLoc__ ), las ventas son en promedio más altas que cuando la calidad de ubicación es mala. Por otro lado, cuando la inversión de publicidad es más alta ( __Advertising__ ), las ventas son mayores.
+
+__¿Qué valor para el MSE de prueba se obtiene?__
+
+Para dar respuesta a esta pregunta se realiza lo siguiente:
+
+```{r, echo=TRUE}
+yhat_cv <- predict(prune_carseats, newdata = test_car)
+mean((yhat_cv - test_car$Sales)^2)
 ```
 
+Se observa como a pesar de que se disminuyo la complejidad de los nodos terminales, el MSE obtenido aumento, en este caso paso de ser de 3.602818 a 4.353022 con la poda. Por lo cual en este caso la poda del árbol no consiguió mejorar el MSE de prueba.
 
-d ) Utilice el método bagging para analizar estos datos. Que valor del MSE
-obtiene?
-Use la función importance() para determinar cúal de las variables es
-la más importante.
+\subsection{d) Bagging}
 
+Se utiliza el método __bagging__ para analizar estos datos __Carseats__ con la función __randomForest()__  y usando la función __importance()__ para determinar cuál de las variables es la más importante. Dicho procedimiento se muestra como sigue:
 
-```{r}
-library(randomForest)
-set.seed(123)
-bag.sales <- randomForest(Sales~., data=train, )
+```{r, echo=TRUE, warning=FALSE,message=FALSE}
+# cargando el paquete para realizar Random Forest y Bagging
+library(randomForest) 
+set.seed(1)
+bag_carseats = randomForest(Sales~.,data=Carseats ,subset =train,mtry=10, importance =TRUE)
+bag_carseats
 ```
 
+Se utilizan 500 árboles de regresión, para ajustar un modelo bagging. Ahora se el MSE de prueba con el método __bagging__:
+
+```{r, echo=TRUE}
+# MSe con el método bagging
+yhat.bag <- predict(bag_carseats, newdata = test_car)
+mean((yhat.bag - test_car$Sales)^2)
+```
+- Se observa que con el método __bagging__ se obtiene un MSE de 2.272119, menor al de los árboles anteriores con y sin la poda.
+
+Utilizando la función “importance()“, se indaga por la importancia de cada variable:
+
+```{r, echo=TRUE}
+importance(bag_carseats)
+```
+
+- Cuando las variables __ShelveLoc__ y __Price__ se excluyen, se presenta la mayor disminución media en la precisión de las ventas, en las muestras __bagging__, estas medidas son de 50.78 y 46.38, respectivamente.
+
+- Cuando las variables __ShelveLoc__ y __Price__ se incluyen, se presenta el mayor incremento total de la pureza del nodo que resulta de divisiones sobre la variable, promediada sobre todos los árboles.
 
 
+```{r, echo=TRUE}
+varImpPlot(bag_carseats, col = '#43CD80', main = 'Modelo bagged')
+```
 
-e) Ahora utilice un bosque aleatorio (Random-Forest) para analizar estos
-datos.
-Que valor del MSE de prueba obtiene?.
-Use la función importance() para determinar cuales variables son las
-más importantes.
-Describa el efecto de m el número de variables consideradas en cada
-subdivisión, en la tasa de error obtenida.
+Los resultados indican que en todos los árboles considerados en el __bagging__, la calidad de ubicación ( __ShelveLoc__ ) y el precio de las silla de bebé( __Price__ ), son las dos variables más importantes.
+
+\subsection{e) Bosque aleatorio}
+
+Ahora se utiliza un bosque aleatorio (Random-Forest) para analizar estos datos Carseats y predecir las ventas.
+
+```{r, echo=TRUE}
+set.seed(6270)
+rf_car <- randomForest(Sales ~ ., data = train_car, mtry = 4, importance=TRUE)
+rf_car
+```
+
+Se utilizaron 500 arboles para construir el bosque aleatorio, cada uno con 5 variables. Ahora se el MSE de prueba con el método __random forest__:
+
+```{r, echo=TRUE}
+# MSe con el método random forest
+yhat.rf<- predict(rf_car, newdata = test_car)
+mean((yhat.rf - test_car$Sales)^2)
+```
+
+- Se observa que con el método __random forest__ se obtiene un MSE de 2.44811, un poco superior al obtenido con el método __bagging__ pero menor al obtenido de los árboles anteriores con y sin la poda.
+
+Utilizando la función “importance()“, se indaga por la importancia de cada variable:
+
+```{r, echo=TRUE}
+importance(rf_car)
+```
+
+- Cuando las variables __ShelveLoc__ y __Price__ se excluyen, se presenta la mayor disminución media en la precisión de las ventas, en las muestras __bagging__, estas medidas son de 52.89 y 43.51, respectivamente.
+
+- Cuando las variables __ShelveLoc__ y __Price__ se incluyen, se presenta el mayor incremento total de la pureza del nodo que resulta de divisiones sobre la variable, promediada sobre todos los árboles.
 
 
+```{r, echo=TRUE}
+varImpPlot(bag_carseats, col = '#6A5ACD', main = 'Modelo Random Forest')
+```
+
+Los resultados indican que en todos los árboles considerados en el __Random Forest__, la calidad de ubicación ( __ShelveLoc__ ) y el precio de las silla de bebé( __Price__ ), son las dos variables más importantes.
+
+__Describa el efecto de m el número de variables consideradas en cada subdivisión, en la tasa de error obtenida.__
+
+Para la construcción del modelo random forest se utilizó m=4, que corresponde a la función techo de 10/3, y se obtiene un error de prueba muy similar al utilizado con bagged, pero con este se garantiza que hay una menor correlación entre árboles.
+
+Se considera m=5, para ver si este mejora las estimaciones en el conjunto de prueba.
+
+```{r, echo=TRUE}
+set.seed(6270)
+rf_car2 <- randomForest(Sales ~ ., data = train_car, mtry = 5, importance=TRUE)
+rf_car2
+```
+
+Luego se cálcula su respectivo MSE de prueba:
+
+```{r, echo=TRUE}
+# MSe con el método random forest
+yhat.rf2<- predict(rf_car2, newdata = test_car)
+mean((yhat.rf2 - test_car$Sales)^2)
+```
+
+Cuando se utiliza m=5, la tasa de error de prueba disminuye con respecto a bagged, hay menor correlación entre los árboles debido a que no se consideran todos los predictores y por lo tanto se puede disminuir la varianza.
 
