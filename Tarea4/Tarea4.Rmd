@@ -44,16 +44,192 @@ knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align =
 ```
 
 
-```{r, warning=FALSE,message=FALSE}
-# Cargo de librerias
-library(corrplot)
+
+\section{Ejercicio 1}
+
+1. Este ejercicio utiliza el conjunto de datos OJ el cual es parte de la librería ISLR
+
+
+\subsection{a) Cree un conjunto de entrenamiento con una muestra aletoria de 800 observaciones y un conjunto de prueba que conste del resto de observaciones.}
+
+
+```{r}
+require(ISLR)
+require(tidyverse)
+require(ggthemes)
+require(caret)
+require(e1071)
+
+set.seed(1)
+
+data('OJ')
+
+inTrain <- sample(nrow(OJ), 800, replace = FALSE)
+
+training <- OJ[inTrain,]
+testing <- OJ[-inTrain,]
 ```
+\subsection{b) Ajuste un clasificador de soporte vectorial utilizando cost = 0.1, con Purchase como la variable respuesta y las demás como predictores.}
+
+
+**Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
+
+```{r}
+svm_linear <- svm(Purchase ~ ., data = training,
+                  kernel = 'linear',
+                  cost = 0.1)
+summary(svm_linear)
+
+```
+
+
+Esto informa, que el kernel lineal ha sido utilizado con cost=0.1, y que se obtuvieron 342 vectores
+de soporte, 171 en una clase y 171 en la otra.
+
+\subsection{c) Que tasas de error de entrenamiento y de prueba obtiene?.}
+
+```{r}
+postResample(predict(svm_linear, training), training$Purchase)
+```
+
+```{r}
+postResample(predict(svm_linear, testing), testing$Purchase)
+```
+\subsection{d)Utilice la función tune() para obtener un valor óptimo del parámetro cost. Considere valores en el rango de 0.01 a 10.}
+
+```{r}
+svm_linear_tune <- train(Purchase ~ ., data = training,
+                         method = 'svmLinear2',
+                         trControl = trainControl(method = 'cv', number = 10),
+                         preProcess = c('center', 'scale'),
+                         tuneGrid = expand.grid(cost = seq(0.01, 10, length.out = 20)))
+```
+
+
+```{r}
+svm_linear_tune
+```
+
+
+\subsection{e) Calcule nuevamente las tasas de error de entrenamiento y de prueba usando el valor  óptimo obtenido de cost.}
+
+```{r}
+postResample(predict(svm_linear_tune, training), training$Purchase)
+```
+
+
+```{r}
+postResample(predict(svm_linear_tune, testing), testing$Purchase)
+```
+
+### Repita items de (b) hasta (e) ajustando esta vez una máquina de soporte vectorial (svm) con un nucle radial. Utilizando el valor de default paray
+
+```{r}
+svm_radial <- svm(Purchase ~ ., data = training,
+                  method = 'radial',
+                  cost = 0.1)
+summary(svm_radial)
+```
+
+
+```{r}
+postResample(predict(svm_radial, training), training$Purchase)
+```
+
+
+```{r}
+postResample(predict(svm_radial, testing), testing$Purchase)
+```
+
+
+```{r}
+svm_radial_tune <- train(Purchase ~ ., data = training,
+                         method = 'svmRadial',
+                         trControl = trainControl(method = 'cv', number = 10),
+                         preProcess = c('center', 'scale'),
+                         tuneGrid = expand.grid(C = seq(0.01, 10, length.out = 20),
+                                                sigma = 0.05))
+```
+
+
+```{r}
+svm_radial_tune
+```
+
+
+```{r}
+postResample(predict(svm_radial_tune, training), training$Purchase)
+```
+
+```{r}
+postResample(predict(svm_radial_tune, testing), testing$Purchase)
+```
+
+
+### Repita items (b) hasta (e) utilizando nuevamente una máquina de soporte vectorial pero esta vez con un nucleo polinomial, usando degree = 2. 
+
+```{r}
+svm_poly <- svm(Purchase ~ ., data = training,
+                  method = 'polynomial', degree = 2,
+                  cost = 0.01)
+summary(svm_poly)
+```
+
+
+```{r}
+postResample(predict(svm_poly, training), training$Purchase)
+```
+
+
+```{r}
+postResample(predict(svm_poly, testing), testing$Purchase)
+```
+
+
+```{r}
+svm_poly_tune <- train(Purchase ~ ., data = training,
+                         method = 'svmPoly',
+                         trControl = trainControl(method = 'cv', number = 10),
+                         preProcess = c('center', 'scale'),
+                         tuneGrid = expand.grid(degree = 2,
+                                         C = seq(0.01, 10, length.out = 20),
+                                         scale = TRUE))
+```
+
+
+```{r}
+svm_poly_tune
+```
+
+
+```{r}
+postResample(predict(svm_poly_tune, training), training$Purchase)
+```
+
+
+```{r}
+postResample(predict(svm_poly_tune, testing), testing$Purchase)
+```
+
+
+\subsection{h) En general cúal método parece proporcionar los mejores resultados en estos datos?.}
+
+En general, los modelos son muy similares, pero los núcleo lineal y radial funcionan mejor por un pequeño margen.
+
+
+
 
 
 
 
 
 \section{Ejercicio 2}
+
+```{r, warning=FALSE,message=FALSE}
+# Cargo de librerias
+library(corrplot)
+```
+
 
 Se considera el conjunto de datos __USArrests__. En este ejercicio se agruparán los
 estados en __USArrests__ con agrupamiento jerarquico. Este conjunto de datos contiene estadísticas, en arrestos por cada 100,000 residentes por agresión, asesinato y violación en cada uno de los 50 estados de EE. UU. en 1973. También se proporciona el porcentaje de la población que vive en áreas urbanas.
