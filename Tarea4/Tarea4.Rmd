@@ -27,8 +27,6 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
-library(ISLR2)
-library(tidyverse)
 ```
 
 
@@ -44,5 +42,136 @@ library(tidyverse)
 \pagestyle{myheadings}
 \setcounter{page}{4}
 ```
+
+
+```{r, warning=FALSE,message=FALSE}
+# Cargo de librerias
+library(corrplot)
+```
+
+
+
+
+
+\section{Ejercicio 2}
+
+Se considera el conjunto de datos __USArrests__. En este ejercicio se agruparán los
+estados en __USArrests__ con agrupamiento jerarquico. Este conjunto de datos contiene estadísticas, en arrestos por cada 100,000 residentes por agresión, asesinato y violación en cada uno de los 50 estados de EE. UU. en 1973. También se proporciona el porcentaje de la población que vive en áreas urbanas.
+
+Primeramente, se procede a cargar la base de datos __USArrests__  y examinar sus características:
+
+```{r}
+head(USArrests) # encabezado de la base
+str(USArrests) # caracteristicas de la base
+```
+
+Se observa como la base cuenta con 50 observaciones y 4 variables las cuales todas son numericas y su descripción se presenta seguidamente:
+
+- __Murder:__ Arrestos por asesinato (por 100.000).
+- __Assault:__  Arrestos por asalto (por 100.000).
+- __UrbanPop:__ Porcentaje de población urbana.
+- __Rape:__  Arrestos por violaciones (por 100.000).
+
+Adicionalmente, se presentan un análisis descriptivos de estas variables:
+
+```{r, fig.height= 3, fig.width= 7}
+pairs(USArrests)
+```
+
+Del anterior gráfico de dispersión entre las variables, se observa como entre cada par de combinación de variables, existe una relación creciente. Lo cual en primera instancia podría ser un indicativo de que posiblemente en los estados donde se presente mayor porcentaje de población urbana también se puede presentar mayores casos de arrestos por asalto, asesinato o violación.
+
+Por otro lado, se presenta una matriz de correlación entre las cuatro variables:
+
+```{r}
+cor(USArrests)
+```
+
+También, se presenta un gráfico de correlaciones de estas variables:
+
+```{r, fig.height= 3, fig.width= 7}
+# se crea la matriz de correlación
+corr.data <- cor(USArrests)
+# gráfico de correlacion para las variables cuantitativas
+corrplot(corr.data, method = 'ellipse', order='AOE', type = 'upper')
+
+```
+
+De los resultados obtenidso anteriormente, se observa como:
+
+- Existe una alta correlación positiva entre los arrestos por asesinato y los arrestos por asaltos, la cual es de un 0.8018733, Esto puede indicar que, así como pueden aumentar los arrestos por asalto en un estado de USA, también puede aumentar los arrestos por asesinato en ese mismo estado.
+
+- Existe una alta correlación positiva entre los arrestos por asalto y los arrestos por violaciones, la cual es de un 0.6652412, Esto puede indicar que, así como pueden aumentar los arrestos por asalto en un estado de USA, también puede aumentar los arrestos por violaciones en ese mismo estado.
+
+- Se observa en la matriz de correlaciones como, no existe una aparente correlación significativa entre los arrestos por asesinatos y el porcentaje de población urbana.
+
+## a)
+
+Se utiliza agrupación jerárquica con enlace completo y distancia euclidiana, para agrupar los estados, de la siguiente forma:
+
+```{r}
+# ajustando un enlace completo con la distancia euclidiana
+hc_complete =hclust(dist(USArrests, method = "euclidean"), method ="complete")
+```
+
+Luego se presenta el __dendrograma__ de dicho enlace completo:
+
+```{r, fig.height= 4.5, fig.width= 8}
+plot(hc_complete ,main =" Complete Linkage ", xlab="", sub ="",
+cex =.7, col = "Purple")
+```
+
+## b)
+
+Se procede a separar en el __dendograma__ a una altura que dé como resultado 3 _clusters_.
+
+```{r, fig.height= 4.5, fig.width= 8}
+plot(hc_complete ,main =" Complete Linkage ", xlab="", sub ="",
+cex =.7, col = "Purple")
+rect.hclust(hc_complete, k=3, border=2:10)
+
+```
+Luego, usando la función __cutree()__ se puede observar las etiquetas a las que pertenece cada estado según el cluster al que se le asigno.
+
+```{r}
+cutree (hc_complete, 3)
+```
+
+## c)
+
+Ahora se procede a escalar las variables a fin de tener una desviación estándar de uno y luego se realiza la respectiva agrupación jerárquica usando un enlace completo y la distancia euclidiana.
+
+La función __scale()__ permite escalar las variables, así como el proceso de agrupación jerárquica se muestra a continuación:
+
+```{r}
+# ajustando un enlace completo con la distancia euclidiana y las variables escaladas
+hc_complete_scale =hclust(dist(scale(USArrests), method = "euclidean"), 
+                           method ="complete")
+```
+
+Luego se presenta el __dendrograma__ de dicho enlace completo:
+
+```{r, fig.height= 5, fig.width= 10}
+plot(hc_complete_scale ,main ="Hierarchical Clustering with Scaled Features", 
+     xlab="", sub ="",
+cex =.7, col = "dark blue")
+```
+
+## d)
+
+Se observa como, en el __dendrograma__ correspondiente a las agrupaciones jerárquicas con las variables escaladas, es notablemente distinto a la agrupación jerárquica generada sin las variables escaladas. Dado que, si bien estamos tratando con los mismos datos, la escalación de variables hace que en cada sub rama existan agrupaciones más uniformes. Inicialmente con las variables sin escalar se observaba claramente una distinción entre tres grupos o _clusters_ distintos. En cambio, realizando el escalado de las variables se puede observar una posible distinción entre 4 _clusters_. 
+
+A continuación se presenta una posible agrupación entre 4 _clusters_:
+
+```{r, fig.height= 5, fig.width= 10}
+plot(hc_complete_scale ,main ="Hierarchical Clustering with Scaled Features", 
+     xlab="", sub ="",
+cex =.7, col = "dark blue")
+rect.hclust(hc_complete_scale, k=4, border=2:10)
+```
+
+Aunque también podría ser una agrupación de tres _clusters_.
+
+En definitiva, se considera que las variables deben ser escaladas previamente, ya que proporciona una mejor estabilidad a la hora de hacer agrupaciones jerárquicas. Porque es bien sabido que la distancia euclidiana no tiene en cuenta el tipo de escala en la cual se encuentran las variables. Lo cual hace que, en ocasiones, usar esta medida no sea del todo preciso y como se pudo observar en los literales anteriores, se obtuvieron _clusters_ y __dendrogramas__ distintos.
+
 
 
