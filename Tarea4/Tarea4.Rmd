@@ -52,13 +52,15 @@ knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align =
 
 \subsection{a) Cree un conjunto de entrenamiento con una muestra aletoria de 800 observaciones y un conjunto de prueba que conste del resto de observaciones.}
 
+Se procede a cargar las librerías necesarias del **R** y a crear un conjunto de entrenamiento de **800** datos para prueba y **270** datos para entrenamiento fijando una semilla = **1** la cual permitirá la replicabilidad de nuestro informe.  
 
-```{r}
+```{r, echo = TRUE}
 require(ISLR)
 require(tidyverse)
 require(ggthemes)
 require(caret)
 require(e1071)
+require(kableExtra)
 
 set.seed(1)
 
@@ -72,7 +74,9 @@ testing <- OJ[-inTrain,]
 \subsection{b) Ajuste un clasificador de soporte vectorial utilizando cost = 0.1, con Purchase como la variable respuesta y las demás como predictores.}
 
 
-**Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
+### Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
+
+Tomando como variable respuesta **Purchase**. Se ajusta un clasificador de soporte vectorial lineal **(SVM Linear)** con un parámetro de **cost = 0.1**
 
 ```{r}
 svm_linear <- svm(Purchase ~ ., data = training,
@@ -82,22 +86,30 @@ summary(svm_linear)
 
 ```
 
-
-Esto informa, que el kernel lineal ha sido utilizado con cost=0.1, y que se obtuvieron 342 vectores
-de soporte, 171 en una clase y 171 en la otra.
+Este clasificador **SVM** de kernel **lineal** ha sido utilizado con **cost=0.1**, y se obtienen **342** vectores
+de soporte, **171** en una clase y **171** en la otra.
 
 \subsection{c) Que tasas de error de entrenamiento y de prueba obtiene?.}
 
 ```{r}
 postResample(predict(svm_linear, training), training$Purchase)
 ```
+Se obtiene una tasa de precisión del **83.5%** para el conjunto de entrenamiento.
 
 ```{r}
 postResample(predict(svm_linear, testing), testing$Purchase)
 ```
+
+Se obtiene una tasa de precisión del **83.7%** para el conjunto de prueba. 
+
+
+Estos nos indica que este clasificador de soporte vectorial de kernel lineal tiene una alta capacidad predictiva. 
+
+
 \subsection{d)Utilice la función tune() para obtener un valor óptimo del parámetro cost. Considere valores en el rango de 0.01 a 10.}
 
 ```{r}
+set.seed(1)
 svm_linear_tune <- train(Purchase ~ ., data = training,
                          method = 'svmLinear2',
                          trControl = trainControl(method = 'cv', number = 10),
