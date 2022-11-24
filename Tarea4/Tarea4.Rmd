@@ -25,10 +25,9 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
+knitr::opts_chunk$set(echo = TRUE, warning =FALSE, message = FALSE, fig.align = "center", fig.height = 3.5, fig.pos = "H")
 
 ```
-
 
 ```{=tex}
 \input{DocumentFormat/titlepage.tex}
@@ -37,22 +36,21 @@ knitr::opts_chunk$set(echo = FALSE, warning =FALSE, message = FALSE, fig.align =
 \newpage
 \thispagestyle{empty}
 ```
-
 ```{=tex}
 \pagestyle{myheadings}
 \setcounter{page}{4}
 ```
-
-
-
 \section{Ejercicio 1}
 
-1. Este ejercicio utiliza el conjunto de datos OJ el cual es parte de la librería ISLR
-
+1.  Este ejercicio utiliza el conjunto de datos OJ el cual es parte de
+    la librería ISLR
 
 \subsection{a) Cree un conjunto de entrenamiento con una muestra aletoria de 800 observaciones y un conjunto de prueba que conste del resto de observaciones.}
 
-Se procede a cargar las librerías necesarias del **R** y a crear un conjunto de entrenamiento de **800** datos para prueba y **270** datos para entrenamiento fijando una semilla = **1** la cual permitirá la replicabilidad de nuestro informe.  
+Se procede a cargar las librerías necesarias del **R** y a crear un
+conjunto de entrenamiento de **800** datos para prueba y **270** datos
+para entrenamiento fijando una semilla = **1** la cual permitirá la
+replicabilidad de nuestro informe.
 
 ```{r, echo = TRUE}
 require(ISLR)
@@ -65,20 +63,23 @@ require(kableExtra)
 set.seed(1)
 
 data('OJ')
+datos <- OJ
 
 inTrain <- sample(nrow(OJ), 800, replace = FALSE)
 
 training <- OJ[inTrain,]
 testing <- OJ[-inTrain,]
 ```
-\subsection{b) Ajuste un clasificador de soporte vectorial utilizando cost = 0.1, con Purchase como la variable respuesta y las demás como predictores.}
 
+\subsection{b) Ajuste un clasificador de soporte vectorial utilizando cost = 0.1, con Purchase como la variable respuesta y las demás como predictores.}
 
 ### Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
 
-Tomando como variable respuesta **Purchase**. Se ajusta un clasificador de soporte vectorial lineal **(SVM Linear)** con un parámetro de **cost = 0.1**
+Tomando como variable respuesta **Purchase**. Se ajusta un clasificador
+de soporte vectorial lineal **(SVM Linear)** con un parámetro de **cost
+= 0.1**
 
-```{r}
+```{r, echo=TRUE}
 svm_linear <- svm(Purchase ~ ., data = training,
                   kernel = 'linear',
                   cost = 0.1)
@@ -86,75 +87,120 @@ summary(svm_linear)
 
 ```
 
-Este clasificador **SVM** de kernel **lineal** ha sido utilizado con **cost=0.1**, y se obtienen **342** vectores
-de soporte, **171** en una clase y **171** en la otra.
+Este clasificador **SVM** de kernel **lineal** ha sido utilizado con
+**cost=0.1**, y se obtienen **342** vectores de soporte, **171** en una
+clase y **171** en la otra.
 
 \subsection{c) Que tasas de error de entrenamiento y de prueba obtiene?.}
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_linear, training), training$Purchase)
 ```
-Se obtiene una tasa de precisión del **83.5%** para el conjunto de entrenamiento.
 
-```{r}
+Se obtiene una tasa de precisión del **83.5%** para el conjunto de
+entrenamiento.
+
+```{r, echo=TRUE}
 postResample(predict(svm_linear, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **83.7%** para el conjunto de prueba. 
+Se obtiene una tasa de precisión del **83.7%** para el conjunto de
+prueba.
 
-
-Estos nos indica que este clasificador de soporte vectorial de kernel lineal tiene una alta capacidad predictiva. 
-
+Estos nos indica que este clasificador de soporte vectorial de kernel
+lineal tiene una alta capacidad predictiva.
 
 \subsection{d)Utilice la función tune() para obtener un valor óptimo del parámetro cost. Considere valores en el rango de 0.01 a 10.}
 
-```{r}
+```{r, echo=TRUE}
 set.seed(1)
-svm_linear_tune <- train(Purchase ~ ., data = training,
+svm_linear_tune <- train(Purchase ~ ., data = datos,
                          method = 'svmLinear2',
                          trControl = trainControl(method = 'cv', number = 10),
                          preProcess = c('center', 'scale'),
                          tuneGrid = expand.grid(cost = seq(0.01, 10, length.out = 20)))
 ```
 
-
-```{r}
+```{r, echo=FALSE}
 svm_linear_tune
 ```
 
+El valor optimo para el parámetro **cost** usando como criterio de
+selección el **acurracy** es **cost = 8.4226316** con una precisión de
+**83.26**.
+
+Contrastamos este resultado con la función **tune()** del R.
+
+```{r}
+set.seed(1)
+svm_linear_tune2=tune(svm ,Purchase~.,data=datos ,kernel ="linear",
+ranges =list(cost=seq(0.01,10) ))
+summary(svm_linear_tune2)
+```
+
+El cual nos confirma que el valor optimo para el **cost** es **0.01**
+dado que este, proporciona el menor error de validación cruzada.
 
 \subsection{e) Calcule nuevamente las tasas de error de entrenamiento y de prueba usando el valor  óptimo obtenido de cost.}
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_linear_tune, training), training$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **83.4%** para el conjunto de
+entrenamiento.
 
-```{r}
+```{r,echo=TRUE}
 postResample(predict(svm_linear_tune, testing), testing$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **84.8%** para el conjunto de
+prueba.
+
+El modelo encontrado por medio de validación cruzada donde se buscaba
+encontrar el valor más óptimo para **cost** con un valor de **00.1**
+tiene una leve mejoría respecto al primer modelo con un **cost = 0.1**
+si son comparados por medio del **accuracy**.
+
 ### Repita items de (b) hasta (e) ajustando esta vez una máquina de soporte vectorial (svm) con un nucle radial. Utilizando el valor de default paray
 
-```{r}
+Ajustamos un clasificador de soporte vectorial de kernel radial **(SVM
+Radial)** con un parámetro de **cost = 0.1**
+
+```{r, echo=TRUE}
 svm_radial <- svm(Purchase ~ ., data = training,
                   method = 'radial',
                   cost = 0.1)
 summary(svm_radial)
 ```
 
+Este clasificador **SVM** de kernel **Radial** ha sido utilizado con
+**cost=0.1**, y se obtienen **541** vectores de soporte, **272** en una
+clase y **269** en la otra.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_radial, training), training$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **82.63%** para el conjunto de
+entrenamiento.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_radial, testing), testing$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **79.62%** para el conjunto de
+prueba.
 
-```{r}
+Comparando la tasa de precisión del clasificador de maquina de soporte
+vectorial con kernel lineal y el clasificador de maquina de soporte
+vectorial con kernel radial se obtiene una perdida de precisión si se
+usa el **SVM Radial**.
+
+Procedemos a buscar un valor optimo para **cost**
+
+```{r, echo=TRUE}
+set.seed(1)
 svm_radial_tune <- train(Purchase ~ ., data = training,
                          method = 'svmRadial',
                          trControl = trainControl(method = 'cv', number = 10),
@@ -163,42 +209,60 @@ svm_radial_tune <- train(Purchase ~ ., data = training,
                                                 sigma = 0.05))
 ```
 
-
-```{r}
+```{r, echo=FALSE}
 svm_radial_tune
 ```
 
+El valor optimo para el parámetro **cost** usando como criterio de
+selección el **acurracy** es **cost = 1.0615789** con una precisión de
+**82.62%**.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_radial_tune, training), training$Purchase)
 ```
 
-```{r}
+Se obtiene una tasa de precisión del **85.25%** para el conjunto de
+entrenamiento.
+
+```{r, echo=TRUE}
 postResample(predict(svm_radial_tune, testing), testing$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **81.85%** para el conjunto de
+prueba.
 
-### Repita items (b) hasta (e) utilizando nuevamente una máquina de soporte vectorial pero esta vez con un nucleo polinomial, usando degree = 2. 
+### Repita items (b) hasta (e) utilizando nuevamente una máquina de soporte vectorial pero esta vez con un nucleo polinomial, usando degree = 2.
 
-```{r}
+Ajustamos un clasificador de soporte vectorial de kernel no lineal
+**(SVM Polynomial)** con un parámetro de **cost = 0.1**
+
+```{r, echo=TRUE}
 svm_poly <- svm(Purchase ~ ., data = training,
                   method = 'polynomial', degree = 2,
                   cost = 0.01)
 summary(svm_poly)
 ```
 
+Este clasificador **SVM** de kernel **Polynomial** ha sido utilizado con
+**cost=0.1**, y se obtienen **634** vectores de soporte, **319** en una
+clase y **315** en la otra.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_poly, training), training$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **60.62%** para el conjunto de
+entrenamiento.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_poly, testing), testing$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **62.22%** para el conjunto de
+prueba.
 
-```{r}
+```{r, echo=TRUE}
+set.seed(2)
 svm_poly_tune <- train(Purchase ~ ., data = training,
                          method = 'svmPoly',
                          trControl = trainControl(method = 'cv', number = 10),
@@ -208,32 +272,40 @@ svm_poly_tune <- train(Purchase ~ ., data = training,
                                          scale = TRUE))
 ```
 
-
-```{r}
+```{r, echo=FALSE}
 svm_poly_tune
 ```
 
+El valor optimo para el parámetro **cost** usando como criterio de
+selección el **acurracy** es **cost = 2.6389474** con una precisión de
+**81.99%**.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_poly_tune, training), training$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **86.25%** para el conjunto de
+entrenamiento.
 
-```{r}
+```{r, echo=TRUE}
 postResample(predict(svm_poly_tune, testing), testing$Purchase)
 ```
 
+Se obtiene una tasa de precisión del **81.48%** para el conjunto de
+prueba.
 
 \subsection{h) En general cúal método parece proporcionar los mejores resultados en estos datos?.}
 
-En general, los modelos son muy similares, pero los núcleo lineal y radial funcionan mejor por un pequeño margen.
+| Kernel      | Best Cost | Acurracy-Conjunto de prueba |
+|-------------|-----------|-----------------------------|
+| Lineal      | 0.01      | 84.81%                      |
+| Radial      | 1.0615789 | 81.85%                      |
+| Polynomial  | 2.6389474 | 81.48%                      |
 
-
-
-
-
-
-
+En general, los modelos son muy similares en el momento de hacer
+predicciones, resaltamos el núcleo lineal, ya que es el modelo con mayor
+precisión. Los clasificadores de soporte vectorial de kernel radial y
+polynomial tiene perdida de precisión por un pequeño margen.
 
 \section{Ejercicio 2}
 
@@ -242,33 +314,45 @@ En general, los modelos son muy similares, pero los núcleo lineal y radial func
 library(corrplot)
 ```
 
+Se considera el conjunto de datos **USArrests**. En este ejercicio se
+agruparán los estados en **USArrests** con agrupamiento jerarquico. Este
+conjunto de datos contiene estadísticas, en arrestos por cada 100,000
+residentes por agresión, asesinato y violación en cada uno de los 50
+estados de EE. UU. en 1973. También se proporciona el porcentaje de la
+población que vive en áreas urbanas.
 
-Se considera el conjunto de datos __USArrests__. En este ejercicio se agruparán los
-estados en __USArrests__ con agrupamiento jerarquico. Este conjunto de datos contiene estadísticas, en arrestos por cada 100,000 residentes por agresión, asesinato y violación en cada uno de los 50 estados de EE. UU. en 1973. También se proporciona el porcentaje de la población que vive en áreas urbanas.
-
-Primeramente, se procede a cargar la base de datos __USArrests__  y examinar sus características:
+Primeramente, se procede a cargar la base de datos **USArrests** y
+examinar sus características:
 
 ```{r}
 head(USArrests) # encabezado de la base
 str(USArrests) # caracteristicas de la base
 ```
 
-Se observa como la base cuenta con 50 observaciones y 4 variables las cuales todas son numericas y su descripción se presenta seguidamente:
+Se observa como la base cuenta con 50 observaciones y 4 variables las
+cuales todas son numericas y su descripción se presenta seguidamente:
 
-- __Murder:__ Arrestos por asesinato (por 100.000).
-- __Assault:__  Arrestos por asalto (por 100.000).
-- __UrbanPop:__ Porcentaje de población urbana.
-- __Rape:__  Arrestos por violaciones (por 100.000).
+-   **Murder:** Arrestos por asesinato (por 100.000).
+-   **Assault:** Arrestos por asalto (por 100.000).
+-   **UrbanPop:** Porcentaje de población urbana.
+-   **Rape:** Arrestos por violaciones (por 100.000).
 
-Adicionalmente, se presentan un análisis descriptivos de estas variables:
+Adicionalmente, se presentan un análisis descriptivos de estas
+variables:
 
 ```{r, fig.height= 3, fig.width= 7}
 pairs(USArrests)
 ```
 
-Del anterior gráfico de dispersión entre las variables, se observa como entre cada par de combinación de variables, existe una relación creciente. Lo cual en primera instancia podría ser un indicativo de que posiblemente en los estados donde se presente mayor porcentaje de población urbana también se puede presentar mayores casos de arrestos por asalto, asesinato o violación.
+Del anterior gráfico de dispersión entre las variables, se observa como
+entre cada par de combinación de variables, existe una relación
+creciente. Lo cual en primera instancia podría ser un indicativo de que
+posiblemente en los estados donde se presente mayor porcentaje de
+población urbana también se puede presentar mayores casos de arrestos
+por asalto, asesinato o violación.
 
-Por otro lado, se presenta una matriz de correlación entre las cuatro variables:
+Por otro lado, se presenta una matriz de correlación entre las cuatro
+variables:
 
 ```{r}
 cor(USArrests)
@@ -286,31 +370,44 @@ corrplot(corr.data, method = 'ellipse', order='AOE', type = 'upper')
 
 De los resultados obtenidso anteriormente, se observa como:
 
-- Existe una alta correlación positiva entre los arrestos por asesinato y los arrestos por asaltos, la cual es de un 0.8018733, Esto puede indicar que, así como pueden aumentar los arrestos por asalto en un estado de USA, también puede aumentar los arrestos por asesinato en ese mismo estado.
+-   Existe una alta correlación positiva entre los arrestos por
+    asesinato y los arrestos por asaltos, la cual es de un 0.8018733,
+    Esto puede indicar que, así como pueden aumentar los arrestos por
+    asalto en un estado de USA, también puede aumentar los arrestos por
+    asesinato en ese mismo estado.
 
-- Existe una alta correlación positiva entre los arrestos por asalto y los arrestos por violaciones, la cual es de un 0.6652412, Esto puede indicar que, así como pueden aumentar los arrestos por asalto en un estado de USA, también puede aumentar los arrestos por violaciones en ese mismo estado.
+-   Existe una alta correlación positiva entre los arrestos por asalto y
+    los arrestos por violaciones, la cual es de un 0.6652412, Esto puede
+    indicar que, así como pueden aumentar los arrestos por asalto en un
+    estado de USA, también puede aumentar los arrestos por violaciones
+    en ese mismo estado.
 
-- Se observa en la matriz de correlaciones como, no existe una aparente correlación significativa entre los arrestos por asesinatos y el porcentaje de población urbana.
+-   Se observa en la matriz de correlaciones como, no existe una
+    aparente correlación significativa entre los arrestos por asesinatos
+    y el porcentaje de población urbana.
 
-## a)
+## a) Utilice agrupación jerárquica con enlace completo y distancia euclidiana,
+para agrupar los estados.
 
-Se utiliza agrupación jerárquica con enlace completo y distancia euclidiana, para agrupar los estados, de la siguiente forma:
+Se utiliza agrupación jerárquica con enlace completo y distancia
+euclidiana, para agrupar los estados, de la siguiente forma:
 
 ```{r}
 # ajustando un enlace completo con la distancia euclidiana
 hc_complete =hclust(dist(USArrests, method = "euclidean"), method ="complete")
 ```
 
-Luego se presenta el __dendrograma__ de dicho enlace completo:
+Luego se presenta el **dendrograma** de dicho enlace completo:
 
 ```{r, fig.height= 4.5, fig.width= 8}
 plot(hc_complete ,main =" Complete Linkage ", xlab="", sub ="",
 cex =.7, col = "Purple")
 ```
 
-## b)
+## b) Corte el **dendograma** a una altura que dé como resultado tres clusters. Qué estados pertenecen a qué cluster? 
 
-Se procede a separar en el __dendograma__ a una altura que dé como resultado 3 _clusters_.
+Se procede a separar en el **dendograma** a una altura que dé como
+resultado 3 *clusters*.
 
 ```{r, fig.height= 4.5, fig.width= 8}
 plot(hc_complete ,main =" Complete Linkage ", xlab="", sub ="",
@@ -318,17 +415,22 @@ cex =.7, col = "Purple")
 rect.hclust(hc_complete, k=3, border=2:10)
 
 ```
-Luego, usando la función __cutree()__ se puede observar las etiquetas a las que pertenece cada estado según el cluster al que se le asigno.
+
+Luego, usando la función **cutree()** se puede observar las etiquetas a
+las que pertenece cada estado según el cluster al que se le asigno.
 
 ```{r}
 cutree (hc_complete, 3)
 ```
 
-## c)
+## c) Agrupe jerárquicamente los estados utilizando un enlace completo y distancia euclidiana, después de escalar las variables para tener una desviación estándar uno.
 
-Ahora se procede a escalar las variables a fin de tener una desviación estándar de uno y luego se realiza la respectiva agrupación jerárquica usando un enlace completo y la distancia euclidiana.
+Ahora se procede a escalar las variables a fin de tener una desviación
+estándar de uno y luego se realiza la respectiva agrupación jerárquica
+usando un enlace completo y la distancia euclidiana.
 
-La función __scale()__ permite escalar las variables, así como el proceso de agrupación jerárquica se muestra a continuación:
+La función **scale()** permite escalar las variables, así como el
+proceso de agrupación jerárquica se muestra a continuación:
 
 ```{r}
 # ajustando un enlace completo con la distancia euclidiana y las variables escaladas
@@ -336,7 +438,7 @@ hc_complete_scale =hclust(dist(scale(USArrests), method = "euclidean"),
                            method ="complete")
 ```
 
-Luego se presenta el __dendrograma__ de dicho enlace completo:
+Luego se presenta el **dendrograma** de dicho enlace completo:
 
 ```{r, fig.height= 5, fig.width= 10}
 plot(hc_complete_scale ,main ="Hierarchical Clustering with Scaled Features", 
@@ -344,11 +446,19 @@ plot(hc_complete_scale ,main ="Hierarchical Clustering with Scaled Features",
 cex =.7, col = "dark blue")
 ```
 
-## d)
+## d)¿Qué efecto tiene el escalado de las variables en la estructura jerárquica del agrupamiento obtenido? En su opinión, ¿deberían las variables ser escaladas antes de que se calculen las disimilitudes entre observaciones? Proporcione una justificación para su respuesta.
 
-Se observa como, en el __dendrograma__ correspondiente a las agrupaciones jerárquicas con las variables escaladas, es notablemente distinto a la agrupación jerárquica generada sin las variables escaladas. Dado que, si bien estamos tratando con los mismos datos, la escalación de variables hace que en cada sub rama existan agrupaciones más uniformes. Inicialmente con las variables sin escalar se observaba claramente una distinción entre tres grupos o _clusters_ distintos. En cambio, realizando el escalado de las variables se puede observar una posible distinción entre 4 _clusters_. 
+Se observa como, en el **dendrograma** correspondiente a las
+agrupaciones jerárquicas con las variables escaladas, es notablemente
+distinto a la agrupación jerárquica generada sin las variables
+escaladas. Dado que, si bien estamos tratando con los mismos datos, la
+escalación de variables hace que en cada sub rama existan agrupaciones
+más uniformes. Inicialmente con las variables sin escalar se observaba
+claramente una distinción entre tres grupos o *clusters* distintos. En
+cambio, realizando el escalado de las variables se puede observar una
+posible distinción entre 4 *clusters*.
 
-A continuación se presenta una posible agrupación entre 4 _clusters_:
+A continuación se presenta una posible agrupación entre 4 *clusters*:
 
 ```{r, fig.height= 5, fig.width= 10}
 plot(hc_complete_scale ,main ="Hierarchical Clustering with Scaled Features", 
@@ -357,9 +467,12 @@ cex =.7, col = "dark blue")
 rect.hclust(hc_complete_scale, k=4, border=2:10)
 ```
 
-Aunque también podría ser una agrupación de tres _clusters_.
+Aunque también podría ser una agrupación de tres *clusters*.
 
-En definitiva, se considera que las variables deben ser escaladas previamente, ya que proporciona una mejor estabilidad a la hora de hacer agrupaciones jerárquicas. Porque es bien sabido que la distancia euclidiana no tiene en cuenta el tipo de escala en la cual se encuentran las variables. Lo cual hace que, en ocasiones, usar esta medida no sea del todo preciso y como se pudo observar en los literales anteriores, se obtuvieron _clusters_ y __dendrogramas__ distintos.
-
-
-
+En definitiva, se considera que las variables deben ser escaladas
+previamente, ya que proporciona una mejor estabilidad a la hora de hacer
+agrupaciones jerárquicas. Porque es bien sabido que la distancia
+euclidiana no tiene en cuenta el tipo de escala en la cual se encuentran
+las variables. Lo cual hace que, en ocasiones, usar esta medida no sea
+del todo preciso y como se pudo observar en los literales anteriores, se
+obtuvieron *clusters* y **dendrogramas** distintos.
