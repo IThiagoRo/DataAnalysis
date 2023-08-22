@@ -42,7 +42,7 @@ knitr::opts_chunk$set(echo = TRUE, warning =FALSE, message = FALSE, fig.align = 
 ```
 \section{Ejercicio 1}
 
-1.  Este ejercicio utiliza el conjunto de datos OJ el cual es parte de
+Este ejercicio utiliza el conjunto de datos OJ el cual es parte de
     la librería ISLR
 
 \subsection{a) Cree un conjunto de entrenamiento con una muestra aletoria de 800 observaciones y un conjunto de prueba que conste del resto de observaciones.}
@@ -52,14 +52,17 @@ conjunto de entrenamiento de **800** datos para prueba y **270** datos
 para entrenamiento fijando una semilla = **1** la cual permitirá la
 replicabilidad de nuestro informe.
 
-```{r, echo = TRUE}
+```{r}
 require(ISLR)
 require(tidyverse)
 require(ggthemes)
 require(caret)
 require(e1071)
 require(kableExtra)
+```
 
+
+```{r, echo = TRUE}
 set.seed(1)
 
 data('OJ')
@@ -73,19 +76,22 @@ testing <- OJ[-inTrain,]
 
 \subsection{b) Ajuste un clasificador de soporte vectorial utilizando cost = 0.1, con Purchase como la variable respuesta y las demás como predictores.}
 
-### Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
 
 Tomando como variable respuesta **Purchase**. Se ajusta un clasificador
-de soporte vectorial lineal **(SVM Linear)** con un parámetro de **cost
-= 0.1**
+de soporte vectorial lineal **(SVM Linear)** con un parámetro de **cost = 0.1**
 
 ```{r, echo=TRUE}
 svm_linear <- svm(Purchase ~ ., data = training,
                   kernel = 'linear',
                   cost = 0.1)
-summary(svm_linear)
-
 ```
+
+### Utilice la función summary() para obtener un resumen de estadísticas y describa los resultados obtenidos.
+
+```{r}
+summary(svm_linear)
+```
+
 
 Este clasificador **SVM** de kernel **lineal** ha sido utilizado con
 **cost=0.1**, y se obtienen **342** vectores de soporte, **171** en una
@@ -97,14 +103,14 @@ clase y **171** en la otra.
 postResample(predict(svm_linear, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **83.5%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **83.5%** para el conjunto de
 entrenamiento.
 
 ```{r, echo=TRUE}
 postResample(predict(svm_linear, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **83.7%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **83.7%** para el conjunto de
 prueba.
 
 Estos nos indica que este clasificador de soporte vectorial de kernel
@@ -127,19 +133,14 @@ svm_linear_tune
 
 El valor optimo para el parámetro **cost** usando como criterio de
 selección el **acurracy** es **cost = 8.4226316** con una precisión de
-**83.26**.
+**83.26%** de clasificación.
 
-Contrastamos este resultado con la función **tune()** del R.
-
-```{r}
+```{r, echo = FALSE}
 set.seed(1)
 svm_linear_tune2=tune(svm ,Purchase~.,data=datos ,kernel ="linear",
 ranges =list(cost=seq(0.01,10) ))
 summary(svm_linear_tune2)
 ```
-
-El cual nos confirma que el valor optimo para el **cost** es **0.01**
-dado que este, proporciona el menor error de validación cruzada.
 
 \subsection{e) Calcule nuevamente las tasas de error de entrenamiento y de prueba usando el valor  óptimo obtenido de cost.}
 
@@ -147,14 +148,14 @@ dado que este, proporciona el menor error de validación cruzada.
 postResample(predict(svm_linear_tune, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **83.4%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **83.4%** para el conjunto de
 entrenamiento.
 
 ```{r,echo=TRUE}
 postResample(predict(svm_linear_tune, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **84.8%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **84.8%** para el conjunto de
 prueba.
 
 El modelo encontrado por medio de validación cruzada donde se buscaba
@@ -182,14 +183,14 @@ clase y **269** en la otra.
 postResample(predict(svm_radial, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **82.63%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **82.63%** para el conjunto de
 entrenamiento.
 
 ```{r, echo=TRUE}
 postResample(predict(svm_radial, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **79.62%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **79.62%** para el conjunto de
 prueba.
 
 Comparando la tasa de precisión del clasificador de maquina de soporte
@@ -221,14 +222,14 @@ selección el **acurracy** es **cost = 1.0615789** con una precisión de
 postResample(predict(svm_radial_tune, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **85.25%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **85.25%** para el conjunto de
 entrenamiento.
 
 ```{r, echo=TRUE}
 postResample(predict(svm_radial_tune, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **81.85%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **81.85%** para el conjunto de
 prueba.
 
 ### Repita items (b) hasta (e) utilizando nuevamente una máquina de soporte vectorial pero esta vez con un nucleo polinomial, usando degree = 2.
@@ -251,14 +252,14 @@ clase y **315** en la otra.
 postResample(predict(svm_poly, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **60.62%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **60.62%** para el conjunto de
 entrenamiento.
 
 ```{r, echo=TRUE}
 postResample(predict(svm_poly, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **62.22%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **62.22%** para el conjunto de
 prueba.
 
 ```{r, echo=TRUE}
@@ -284,14 +285,14 @@ selección el **acurracy** es **cost = 2.6389474** con una precisión de
 postResample(predict(svm_poly_tune, training), training$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **86.25%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **86.25%** para el conjunto de
 entrenamiento.
 
 ```{r, echo=TRUE}
 postResample(predict(svm_poly_tune, testing), testing$Purchase)
 ```
 
-Se obtiene una tasa de precisión del **81.48%** para el conjunto de
+Se obtiene una tasa de precisión de clasificación del **81.48%** para el conjunto de
 prueba.
 
 \subsection{h) En general cúal método parece proporcionar los mejores resultados en estos datos?.}
